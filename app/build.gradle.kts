@@ -17,8 +17,20 @@ android {
         versionName = "1.0"
     }
 
+    //remove this block and the singingConfig line to disable release workflow
+    signingConfigs {
+        create("release") {
+            storeFile = file("release.keystore")
+            //storePassword = System.getenv("MYAPP_RELEASE_STORE_PASSWORD")
+            storePassword = System.getenv("MYAPP_RELEASE_STORE_PASSWORD") ?: "temporary_local_password"
+            keyAlias = System.getenv("MYAPP_RELEASE_KEY_ALIAS")
+            keyPassword = System.getenv("MYAPP_RELEASE_KEY_PASSWORD")
+        }
+    }
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
+
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
