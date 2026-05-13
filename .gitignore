@@ -1,0 +1,20 @@
+# Keystore / Signing files (The Safety Net)
+*.jks
+*.keystore
+*.p12
+
+# Local configuration
+local.properties
+
+# Build output
+**/build/
+*.apk
+*.bundle
+
+# IDE files
+.gradle/
+.idea/
+*.iml
+
+# OS files
+.DS_Store
