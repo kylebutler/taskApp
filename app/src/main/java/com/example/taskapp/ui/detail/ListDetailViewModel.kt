@@ -96,6 +96,13 @@ class ListDetailViewModel(
 
     fun setTitleEditing(editing: Boolean) = _uiState.update { it.copy(isEditingTitle = editing) }
 
+    fun toggleLock() {
+        val list = _uiState.value.taskList ?: return
+        viewModelScope.launch {
+            repo.updateList(list.copy(isLocked = !list.isLocked))
+        }
+    }
+
     fun saveTitle(newTitle: String) {
         val list = _uiState.value.taskList ?: return
         viewModelScope.launch {

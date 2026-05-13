@@ -14,6 +14,7 @@ data class TaskListEntity(
     val colorArgb: Int? = null,
     val isDeleted: Boolean = false,
     val isArchived: Boolean = false,
+    val isLocked: Boolean = false,
     val deletedAt: Long? = null,
     val createdAt: Long = System.currentTimeMillis()
 )
@@ -27,6 +28,7 @@ fun TaskListEntity.toDomain(isNotificationEnabled: Boolean = false) = TaskList(
     isNotificationEnabled = isNotificationEnabled,
     isDeleted = isDeleted,
     isArchived = isArchived,
+    isLocked = isLocked,
     deletedAt = deletedAt,
     createdAt = createdAt
 )
@@ -39,6 +41,7 @@ fun TaskList.toEntity() = TaskListEntity(
     colorArgb = colorArgb,
     isDeleted = isDeleted,
     isArchived = isArchived,
+    isLocked = isLocked,
     deletedAt = deletedAt,
     createdAt = createdAt
 )

@@ -9,6 +9,7 @@ data class TaskList(
     val isNotificationEnabled: Boolean = false,
     val isDeleted: Boolean = false,
     val isArchived: Boolean = false,
+    val isLocked: Boolean = false,
     val deletedAt: Long? = null,
     val createdAt: Long = System.currentTimeMillis()
 )
