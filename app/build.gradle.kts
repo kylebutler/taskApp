@@ -17,7 +17,7 @@ android {
         versionName = "1.0"
     }
 
-    //remove this block and the singingConfig line to disable release workflow
+    //remove this block and the singingConfig line to disable release workflows
     signingConfigs {
         create("release") {
             storeFile = file("release.keystore")

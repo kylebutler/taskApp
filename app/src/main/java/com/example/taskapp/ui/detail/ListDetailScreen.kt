@@ -1,23 +1,36 @@
 package com.example.taskapp.ui.detail
 
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -29,6 +42,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -36,15 +50,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.taskapp.domain.model.ListType
 import com.example.taskapp.domain.model.TaskItem
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,6 +81,25 @@ fun ListDetailScreen(
     var draggedIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffsetY by remember { mutableStateOf(0f) }
     val listState = rememberLazyListState()
+    var showColorPicker by remember { mutableStateOf(false) }
+
+    val presetColors = listOf(
+        Color(0xFFB71C1C), // Deep Red
+        Color(0xFFE65100), // Deep Orange
+        Color(0xFFF57F17), // Deep Yellow/Gold
+        Color(0xFF1B5E20), // Deep Green
+        Color(0xFF0D47A1), // Deep Blue
+        Color(0xFF4A148C), // Deep Purple
+        Color(0xFF424242)  // Deep Gray
+    )
+
+    val backgroundColor = uiState.taskList?.colorArgb?.let { Color(it) } ?: MaterialTheme.colorScheme.surface
+    val defaultSurfaceColor = MaterialTheme.colorScheme.surface
+
+    // Determine content color based on background
+    val contentColor = if (uiState.taskList?.colorArgb != null) Color.White else MaterialTheme.colorScheme.onSurface
+    val secondaryContentColor = if (uiState.taskList?.colorArgb != null) Color.White.copy(alpha = 0.7f) else MaterialTheme.colorScheme.secondary
+    val focusManager = LocalFocusManager.current
 
     // Sync local mirror from DB state only when not mid-drag
     LaunchedEffect(uiState.items) {
@@ -70,6 +110,8 @@ fun ListDetailScreen(
     }
 
     Scaffold(
+        containerColor = backgroundColor,
+        contentColor = contentColor,
         topBar = {
             TopAppBar(
                 title = {
@@ -85,105 +127,150 @@ fun ListDetailScreen(
                             onDispose { if (editText.isNotBlank()) viewModel.saveTitle(editText) }
                         }
                     } else {
-                        TextButton(onClick = { viewModel.setTitleEditing(true) }) {
+                        TextButton(onClick = { if (uiState.taskList?.isLocked == false) viewModel.setTitleEditing(true) }) {
                             Text(
                                 text = uiState.taskList?.title ?: "",
                                 style = MaterialTheme.typography.titleLarge,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = contentColor
                             )
                         }
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = contentColor
+                        )
                     }
                 },
                 actions = {
-                    IconButton(onClick = onOpenNotificationSettings) {
-                        Icon(Icons.Default.Notifications, "Notification settings")
+                    IconButton(onClick = { viewModel.toggleLock() }) {
+                        Icon(
+                            imageVector = if (uiState.taskList?.isLocked == true) Icons.Default.Lock else Icons.Default.LockOpen,
+                            contentDescription = if (uiState.taskList?.isLocked == true) "Unlock" else "Lock",
+                            tint = contentColor
+                        )
                     }
-                }
+                    IconButton(onClick = { showColorPicker = !showColorPicker }) {
+                        Icon(
+                            imageVector = Icons.Default.Palette,
+                            contentDescription = "Pick color",
+                            tint = contentColor
+                        )
+                    }
+                    IconButton(onClick = onOpenNotificationSettings) {
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = "Notification settings",
+                            tint = contentColor
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    titleContentColor = contentColor,
+                    navigationIconContentColor = contentColor,
+                    actionIconContentColor = contentColor
+                )
             )
         }
     ) { padding ->
+        val list = uiState.taskList
+        val isLocked = list?.isLocked == true
         Column(modifier = Modifier.padding(padding)) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = uiState.newItemText,
-                    onValueChange = viewModel::setNewItemText,
-                    placeholder = { Text("New task…") },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-                Spacer(Modifier.width(8.dp))
-                IconButton(onClick = viewModel::addItem) {
-                    Icon(Icons.Default.Add, "Add task")
+            if (showColorPicker) {
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    item {
+                        Surface(
+                            onClick = { viewModel.saveColor(defaultSurfaceColor.toArgb()) },
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                            modifier = Modifier.size(36.dp)
+                        ) {}
+                    }
+                    items(presetColors) { color ->
+                        Surface(
+                            onClick = { viewModel.saveColor(color.toArgb()) },
+                            shape = CircleShape,
+                            color = color,
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f)),
+                            modifier = Modifier.size(36.dp)
+                        ) {}
+                    }
                 }
             }
 
-            LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                val activeItems = localItems.filter { !it.isChecked }
-                val completedItems = localItems.filter { it.isChecked }
+            uiState.notificationDescription?.let { description ->
+                Text(
+                    text = "🔔 $description",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = secondaryContentColor,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+            }
 
-                itemsIndexed(activeItems, key = { _, item -> item.id }) { index, item ->
-                    val isDraggedItem = draggedIndex == index
-                    val elevation by animateDpAsState(
-                        targetValue = if (isDraggedItem) 8.dp else 0.dp,
-                        label = "drag_elevation"
-                    )
-                    DraggableTaskRow(
-                        item = item,
-                        isDragged = isDraggedItem,
-                        elevation = elevation,
-                        dragOffsetY = if (isDraggedItem) dragOffsetY else 0f,
-                        onCheckedChange = { viewModel.toggleItem(item) },
-                        onDelete = { viewModel.deleteItem(item) },
-                        onDragStart = {
-                            isDragging = true
-                            draggedIndex = index
-                            dragOffsetY = 0f
-                        },
-                        onDrag = { delta ->
-                            dragOffsetY += delta
-                            val currentDragged = draggedIndex ?: return@DraggableTaskRow
-                            val itemHeightPx = listState.layoutInfo.visibleItemsInfo
-                                .firstOrNull()?.size?.toFloat() ?: 56f
-                            val rawTarget = currentDragged + (dragOffsetY / itemHeightPx).toInt()
-                            val targetIndex = rawTarget.coerceIn(0, activeItems.size - 1)
-                            if (targetIndex != currentDragged) {
-                                val moved = localItems.removeAt(currentDragged)
-                                localItems.add(targetIndex, moved)
-                                dragOffsetY -= (targetIndex - currentDragged) * itemHeightPx
-                                draggedIndex = targetIndex
-                            }
-                        },
-                        onDragEnd = {
-                            isDragging = false
-                            draggedIndex = null
-                            dragOffsetY = 0f
-                            viewModel.reorderItems(localItems.toList())
+            if (list?.type == ListType.TEXT) {
+                var noteText by remember(list.textContent) { mutableStateOf(list.textContent ?: "") }
+                BasicTextField(
+                    value = noteText,
+                    onValueChange = { if (!isLocked) noteText = it },
+                    readOnly = isLocked,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = contentColor),
+                    cursorBrush = SolidColor(contentColor),
+                    decorationBox = { innerTextField ->
+                        if (noteText.isEmpty()) {
+                            Text("Start typing your note...", color = secondaryContentColor)
                         }
-                    )
+                        innerTextField()
+                    }
+                )
+                DisposableEffect(list.id) {
+                    onDispose { if (!isLocked) viewModel.updateTextContent(noteText) }
+                }
+            } else {
+                if (!isLocked) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = uiState.newItemText,
+                            onValueChange = viewModel::setNewItemText,
+                            placeholder = { Text("New task…", color = secondaryContentColor) },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        IconButton(onClick = viewModel::addItem) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Add task",
+                                tint = contentColor
+                            )
+                        }
+                    }
                 }
 
-                if (completedItems.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = "Completed",
-                            style = MaterialTheme.typography.titleSmall,
-                            modifier = Modifier.padding(16.dp),
-                            color = MaterialTheme.colorScheme.secondary
-                        )
-                    }
-                    itemsIndexed(completedItems, key = { _, item -> item.id }) { index, item ->
-                        val actualIndex = index + activeItems.size
-                        val isDraggedItem = draggedIndex == actualIndex
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                    val activeItems = localItems.filter { !it.isChecked }
+                    val completedItems = localItems.filter { it.isChecked }
+
+                    itemsIndexed(activeItems, key = { _, item -> item.id }) { index, item ->
+                        val isDraggedItem = draggedIndex == index
                         val elevation by animateDpAsState(
                             targetValue = if (isDraggedItem) 8.dp else 0.dp,
                             label = "drag_elevation"
@@ -191,22 +278,27 @@ fun ListDetailScreen(
                         DraggableTaskRow(
                             item = item,
                             isDragged = isDraggedItem,
+                            isLocked = isLocked,
                             elevation = elevation,
                             dragOffsetY = if (isDraggedItem) dragOffsetY else 0f,
+                            contentColor = contentColor,
                             onCheckedChange = { viewModel.toggleItem(item) },
+                            onTextChange = { viewModel.updateItemText(item, it) },
                             onDelete = { viewModel.deleteItem(item) },
                             onDragStart = {
-                                isDragging = true
-                                draggedIndex = actualIndex
-                                dragOffsetY = 0f
+                                if (!isLocked) {
+                                    isDragging = true
+                                    draggedIndex = index
+                                    dragOffsetY = 0f
+                                }
                             },
                             onDrag = { delta ->
                                 dragOffsetY += delta
                                 val currentDragged = draggedIndex ?: return@DraggableTaskRow
                                 val itemHeightPx = listState.layoutInfo.visibleItemsInfo
-                                    .firstOrNull()?.size?.toFloat() ?: 56f
+                                    .find { it.key == item.id }?.size?.toFloat() ?: 56f
                                 val rawTarget = currentDragged + (dragOffsetY / itemHeightPx).toInt()
-                                val targetIndex = rawTarget.coerceIn(activeItems.size, localItems.size - 1)
+                                val targetIndex = rawTarget.coerceIn(0, activeItems.size - 1)
                                 if (targetIndex != currentDragged) {
                                     val moved = localItems.removeAt(currentDragged)
                                     localItems.add(targetIndex, moved)
@@ -222,6 +314,63 @@ fun ListDetailScreen(
                             }
                         )
                     }
+
+                    if (completedItems.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = "Completed",
+                                style = MaterialTheme.typography.titleSmall,
+                                modifier = Modifier.padding(16.dp),
+                                color = secondaryContentColor
+                            )
+                        }
+                        itemsIndexed(completedItems, key = { _, item -> item.id }) { index, item ->
+                            val actualIndex = index + activeItems.size
+                            val isDraggedItem = draggedIndex == actualIndex
+                            val elevation by animateDpAsState(
+                                targetValue = if (isDraggedItem) 8.dp else 0.dp,
+                                label = "drag_elevation"
+                            )
+                            DraggableTaskRow(
+                                item = item,
+                                isDragged = isDraggedItem,
+                                isLocked = isLocked,
+                                elevation = elevation,
+                                dragOffsetY = if (isDraggedItem) dragOffsetY else 0f,
+                                contentColor = contentColor,
+                                onCheckedChange = { viewModel.toggleItem(item) },
+                                onTextChange = { viewModel.updateItemText(item, it) },
+                                onDelete = { viewModel.deleteItem(item) },
+                                onDragStart = {
+                                    if (!isLocked) {
+                                        isDragging = true
+                                        draggedIndex = actualIndex
+                                        dragOffsetY = 0f
+                                    }
+                                },
+                                onDrag = { delta ->
+                                    dragOffsetY += delta
+                                    val currentDragged = draggedIndex ?: return@DraggableTaskRow
+                                    val itemHeightPx = listState.layoutInfo.visibleItemsInfo
+                                        .find { it.key == item.id }?.size?.toFloat() ?: 56f
+                                    val rawTarget = currentDragged + (dragOffsetY / itemHeightPx).toInt()
+                                    val targetIndex = rawTarget.coerceIn(activeItems.size, localItems.size - 1)
+                                    if (targetIndex != currentDragged) {
+                                        val moved = localItems.removeAt(currentDragged)
+                                        localItems.add(targetIndex, moved)
+                                        dragOffsetY -= (targetIndex - currentDragged) * itemHeightPx
+                                        draggedIndex = targetIndex
+                                    }
+                                },
+                                onDragEnd = {
+                                    isDragging = false
+                                    draggedIndex = null
+                                    dragOffsetY = 0f
+                                    viewModel.reorderItems(localItems.toList())
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -232,16 +381,27 @@ fun ListDetailScreen(
 private fun DraggableTaskRow(
     item: TaskItem,
     isDragged: Boolean,
+    isLocked: Boolean,
     elevation: Dp,
     dragOffsetY: Float,
+    contentColor: Color,
     onCheckedChange: () -> Unit,
+    onTextChange: (String) -> Unit,
     onDelete: () -> Unit,
     onDragStart: () -> Unit,
     onDrag: (Float) -> Unit,
     onDragEnd: () -> Unit
 ) {
+    var editText by remember(item.text) { mutableStateOf(item.text) }
+    val focusManager = LocalFocusManager.current
+
+    val currentOnDragStart by rememberUpdatedState(onDragStart)
+    val currentOnDrag by rememberUpdatedState(onDrag)
+    val currentOnDragEnd by rememberUpdatedState(onDragEnd)
+
     Surface(
         shadowElevation = elevation,
+        color = Color.Transparent,
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer { translationY = if (isDragged) dragOffsetY else 0f }
@@ -250,35 +410,71 @@ private fun DraggableTaskRow(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Default.DragHandle,
-                contentDescription = "Drag to reorder",
+            if (!isLocked) {
+                Icon(
+                    imageVector = Icons.Default.DragHandle,
+                    contentDescription = "Drag to reorder",
+                    tint = contentColor.copy(alpha = 0.6f),
+                    modifier = Modifier
+                        .pointerInput(item.id) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = { currentOnDragStart() },
+                                onDrag = { _, dragAmount -> currentOnDrag(dragAmount.y) },
+                                onDragEnd = { currentOnDragEnd() },
+                                onDragCancel = { currentOnDragEnd() }
+                            )
+                        }
+                        .padding(8.dp)
+                )
+            } else {
+                Spacer(modifier = Modifier.width(40.dp))
+            }
+            
+            Checkbox(
+                checked = item.isChecked,
+                onCheckedChange = { if (!isLocked) onCheckedChange() },
+                enabled = !isLocked
+            )
+            BasicTextField(
+                value = editText,
+                onValueChange = { if (!isLocked) editText = it },
+                readOnly = isLocked,
                 modifier = Modifier
-                    .pointerInput(Unit) {
-                        detectDragGesturesAfterLongPress(
-                            onDragStart = { onDragStart() },
-                            onDrag = { _, dragAmount -> onDrag(dragAmount.y) },
-                            onDragEnd = onDragEnd,
-                            onDragCancel = onDragEnd
-                        )
+                    .weight(1f)
+                    .padding(vertical = 8.dp),
+                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                    textDecoration = if (item.isChecked) TextDecoration.LineThrough else TextDecoration.None,
+                    color = if (item.isChecked) {
+                        contentColor.copy(alpha = 0.6f)
+                    } else {
+                        contentColor
                     }
-                    .padding(8.dp)
-            )
-            Checkbox(checked = item.isChecked, onCheckedChange = { onCheckedChange() })
-            Text(
-                text = item.text,
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    textDecoration = if (item.isChecked) TextDecoration.LineThrough else TextDecoration.None
                 ),
-                color = if (item.isChecked) {
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                },
-                modifier = Modifier.weight(1f)
+                cursorBrush = SolidColor(contentColor),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        onTextChange(editText)
+                        focusManager.clearFocus()
+                    }
+                )
             )
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, "Delete task", tint = MaterialTheme.colorScheme.error)
+            // Trigger save on focus lost as well
+            DisposableEffect(item.id) {
+                onDispose {
+                    if (!isLocked && editText != item.text) {
+                        onTextChange(editText)
+                    }
+                }
+            }
+            if (!isLocked) {
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete task",
+                        tint = if (contentColor == Color.White) Color.White.copy(alpha = 0.8f) else MaterialTheme.colorScheme.error
+                    )
+                }
             }
         }
     }

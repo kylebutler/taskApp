@@ -16,6 +16,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.AlertDialog
@@ -153,7 +155,8 @@ fun HomeScreen(
                             list = list,
                             onClick = { onListClick(list.id) },
                             onArchive = { listToArchive = list },
-                            onDelete = { listToDelete = list }
+                            onDelete = { listToDelete = list },
+                            onToggleLock = { viewModel.toggleLock(list) }
                         )
                     }
                 }
@@ -279,7 +282,8 @@ private fun TaskListCard(
     list: TaskList,
     onClick: () -> Unit,
     onArchive: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onToggleLock: () -> Unit
 ) {
     val backgroundColor = list.colorArgb?.let { Color(it) } ?: MaterialTheme.colorScheme.surfaceVariant
     val contentColor = if (list.colorArgb != null) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
@@ -312,6 +316,13 @@ private fun TaskListCard(
                 )
             }
             Row {
+                IconButton(onClick = onToggleLock) {
+                    Icon(
+                        imageVector = if (list.isLocked) Icons.Default.Lock else Icons.Default.LockOpen,
+                        contentDescription = if (list.isLocked) "Unlock" else "Lock",
+                        tint = contentColor.copy(alpha = 0.8f)
+                    )
+                }
                 IconButton(onClick = onArchive) {
                     Icon(
                         imageVector = Icons.Default.Archive,

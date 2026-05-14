@@ -41,7 +41,7 @@ fun AppNavigation(
     startListId: Long? = null
 ) {
     val context = LocalContext.current
-    val app = context.applicationContext as TaskApp
+    val app = context.applicationContext as? TaskApp ?: return
 
     NavHost(navController = navController, startDestination = Screen.Home.route) {
 
