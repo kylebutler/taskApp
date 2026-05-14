@@ -103,6 +103,13 @@ class ListDetailViewModel(
         }
     }
 
+    fun moveToTrash() {
+        val list = _uiState.value.taskList ?: return
+        viewModelScope.launch {
+            repo.moveToTrash(list)
+        }
+    }
+
     fun saveTitle(newTitle: String) {
         val list = _uiState.value.taskList ?: return
         viewModelScope.launch {

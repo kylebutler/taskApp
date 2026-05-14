@@ -31,6 +31,8 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -82,6 +84,7 @@ fun ListDetailScreen(
     var dragOffsetY by remember { mutableStateOf(0f) }
     val listState = rememberLazyListState()
     var showColorPicker by remember { mutableStateOf(false) }
+    var showTrashConfirm by remember { mutableStateOf(false) }
 
     val presetColors = listOf(
         Color(0xFFB71C1C), // Deep Red
@@ -107,6 +110,33 @@ fun ListDetailScreen(
             localItems.clear()
             localItems.addAll(uiState.items.sortedBy { it.isChecked })
         }
+    }
+
+    if (showTrashConfirm) {
+        AlertDialog(
+            onDismissRequest = { showTrashConfirm = false },
+            title = { Text("Move to Trash") },
+            text = { Text("Are you sure you want to move this list to trash?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.moveToTrash()
+                        showTrashConfirm = false
+                        onBack()
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Move to Trash")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTrashConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -150,6 +180,13 @@ fun ListDetailScreen(
                         Icon(
                             imageVector = if (uiState.taskList?.isLocked == true) Icons.Default.Lock else Icons.Default.LockOpen,
                             contentDescription = if (uiState.taskList?.isLocked == true) "Unlock" else "Lock",
+                            tint = contentColor
+                        )
+                    }
+                    IconButton(onClick = { showTrashConfirm = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Move to Trash",
                             tint = contentColor
                         )
                     }

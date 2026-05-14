@@ -35,12 +35,6 @@ class HomeViewModel(private val repo: TaskRepository) : ViewModel() {
         viewModelScope.launch { repo.moveToArchive(list) }
     }
 
-    fun toggleLock(list: TaskList) {
-        viewModelScope.launch {
-            repo.updateList(list.copy(isLocked = !list.isLocked))
-        }
-    }
-
     fun deleteList(list: TaskList) {
         moveToTrash(list)
     }
