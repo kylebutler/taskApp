@@ -64,6 +64,12 @@ class TaskRepository(private val db: TaskAppDatabase) {
     suspend fun permanentlyDeleteList(list: TaskList) =
         db.taskListDao().deleteList(list.toEntity())
 
+    suspend fun reorderLists(lists: List<TaskList>) {
+        db.taskListDao().updateLists(
+            lists.mapIndexed { index, list -> list.copy(position = index).toEntity() }
+        )
+    }
+
     suspend fun deleteList(list: TaskList) =
         moveToTrash(list)
 

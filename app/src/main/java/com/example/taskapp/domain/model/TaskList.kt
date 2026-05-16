@@ -10,6 +10,7 @@ data class TaskList(
     val isDeleted: Boolean = false,
     val isArchived: Boolean = false,
     val isLocked: Boolean = false,
+    val position: Int = 0,
     val deletedAt: Long? = null,
     val createdAt: Long = System.currentTimeMillis()
 )

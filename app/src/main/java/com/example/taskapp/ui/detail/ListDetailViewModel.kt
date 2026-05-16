@@ -84,18 +84,26 @@ class ListDetailViewModel(
     private fun formatNotificationSchedule(setting: NotificationSetting?): String? {
         if (setting == null || !setting.isEnabled) return null
 
-        val timeStr = "%02d:%02d".format(setting.hour, setting.minute)
+        val is24Hour = android.text.format.DateFormat.is24HourFormat(app)
+        val timeStr = if (is24Hour) {
+            "%02d:%02d".format(setting.hour, setting.minute)
+        } else {
+            val hour = if (setting.hour % 12 == 0) 12 else setting.hour % 12
+            val amPm = if (setting.hour < 12) "AM" else "PM"
+            "%d:%02d %s".format(hour, setting.minute, amPm)
+        }
 
         return when (setting.frequency) {
             NotificationFrequency.DAILY -> "Daily at $timeStr"
             NotificationFrequency.WEEKLY -> {
-                val days = listOf("Su", "Mo", "Tu", "We", "Th", "Fri", "Sa")
+                val days = listOf("Su", "Mo", "Tu", "We", "Th", "Fr", "Sa")
                 val selectedDays = days.filterIndexed { index, _ -> (setting.weekDaysMask and (1 shl index)) != 0 }
                 if (selectedDays.isEmpty()) "Weekly (no days selected)"
                 else "Weekly on ${selectedDays.joinToString(", ")} at $timeStr"
             }
             NotificationFrequency.ONE_TIME -> {
-                val date = SimpleDateFormat("MMM d, yyyy HH:mm", Locale.getDefault()).format(Date(setting.oneTimeEpochMillis))
+                val pattern = if (is24Hour) "MMM d, yyyy HH:mm" else "MMM d, yyyy h:mm a"
+                val date = SimpleDateFormat(pattern, Locale.getDefault()).format(Date(setting.oneTimeEpochMillis))
                 "One-time on $date"
             }
             NotificationFrequency.CUSTOM_INTERVAL -> {

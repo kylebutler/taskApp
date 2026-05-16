@@ -59,12 +59,16 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
@@ -106,12 +110,20 @@ fun ListDetailScreen(
     val contentColor = if (uiState.taskList?.colorArgb != null) Color.White else MaterialTheme.colorScheme.onSurface
     val secondaryContentColor = if (uiState.taskList?.colorArgb != null) Color.White.copy(alpha = 0.7f) else MaterialTheme.colorScheme.secondary
     val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     // Sync local mirror from DB state only when not mid-drag
     LaunchedEffect(uiState.items) {
         if (!isDragging) {
-            localItems.clear()
-            localItems.addAll(uiState.items.sortedBy { it.isChecked })
+            val sorted = uiState.items.sortedBy { it.isChecked }
+            if (localItems.size == sorted.size) {
+                sorted.forEachIndexed { index, item ->
+                    if (localItems[index] != item) localItems[index] = item
+                }
+            } else {
+                localItems.clear()
+                localItems.addAll(sorted)
+            }
         }
     }
 
@@ -385,7 +397,11 @@ fun ListDetailScreen(
                             elevation = elevation,
                             dragOffsetY = if (isDraggedItem) dragOffsetY else 0f,
                             contentColor = contentColor,
-                            onCheckedChange = { viewModel.toggleItem(item) },
+                            onCheckedChange = { 
+                                keyboardController?.hide()
+                                focusManager.clearFocus(force = true)
+                                viewModel.toggleItem(item) 
+                            },
                             onTextChange = { viewModel.updateItemText(item, it) },
                             onDelete = { viewModel.deleteItem(item) },
                             onDragStart = {
@@ -441,7 +457,11 @@ fun ListDetailScreen(
                                 elevation = elevation,
                                 dragOffsetY = if (isDraggedItem) dragOffsetY else 0f,
                                 contentColor = contentColor,
-                                onCheckedChange = { viewModel.toggleItem(item) },
+                                onCheckedChange = { 
+                                    keyboardController?.hide()
+                                    focusManager.clearFocus(force = true)
+                                    viewModel.toggleItem(item) 
+                                },
                                 onTextChange = { viewModel.updateItemText(item, it) },
                                 onDelete = { viewModel.deleteItem(item) },
                                 onDragStart = {
@@ -497,10 +517,18 @@ private fun DraggableTaskRow(
 ) {
     var editText by remember(item.text) { mutableStateOf(item.text) }
     val focusManager = LocalFocusManager.current
+    val focusRequester = remember { FocusRequester() }
 
     val currentOnDragStart by rememberUpdatedState(onDragStart)
     val currentOnDrag by rememberUpdatedState(onDrag)
     val currentOnDragEnd by rememberUpdatedState(onDragEnd)
+
+    // Force clear focus if this item becomes checked
+    LaunchedEffect(item.isChecked) {
+        if (item.isChecked) {
+            focusManager.clearFocus(force = true)
+        }
+    }
 
     Surface(
         shadowElevation = elevation,
@@ -535,16 +563,23 @@ private fun DraggableTaskRow(
             
             Checkbox(
                 checked = item.isChecked,
-                onCheckedChange = { if (!isLocked) onCheckedChange() },
+                onCheckedChange = { 
+                    if (!isLocked) {
+                        focusManager.clearFocus(force = true)
+                        onCheckedChange() 
+                    }
+                },
                 enabled = !isLocked
             )
             BasicTextField(
                 value = editText,
                 onValueChange = { if (!isLocked) editText = it },
-                readOnly = isLocked,
+                readOnly = isLocked || item.isChecked,
                 modifier = Modifier
                     .weight(1f)
-                    .padding(vertical = 8.dp),
+                    .padding(vertical = 8.dp)
+                    .focusRequester(focusRequester)
+                    .focusProperties { canFocus = !item.isChecked && !isLocked },
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                     textDecoration = if (item.isChecked) TextDecoration.LineThrough else TextDecoration.None,
                     color = if (item.isChecked) {

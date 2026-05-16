@@ -61,6 +61,7 @@ fun NotificationSettingsScreen(
     val setting = uiState.setting ?: return
     val context = LocalContext.current
     val dayLabels = listOf("Su", "Mo", "Tu", "We", "Th", "Fri", "Sa")
+    val is24Hour = android.text.format.DateFormat.is24HourFormat(context)
 
     val notificationsEnabled = remember {
         NotificationManagerCompat.from(context).areNotificationsEnabled()
@@ -159,10 +160,17 @@ fun NotificationSettingsScreen(
                     item { HorizontalDivider() }
                     item {
                         var showTimePicker by remember { mutableStateOf(false) }
+                        val timeDisplay = if (is24Hour) {
+                            "%02d:%02d".format(setting.hour, setting.minute)
+                        } else {
+                            val hour = if (setting.hour % 12 == 0) 12 else setting.hour % 12
+                            val amPm = if (setting.hour < 12) "AM" else "PM"
+                            "%d:%02d %s".format(hour, setting.minute, amPm)
+                        }
                         ListItem(
                             headlineContent = { Text("Time") },
                             supportingContent = {
-                                Text("%02d:%02d".format(setting.hour, setting.minute))
+                                Text(timeDisplay)
                             },
                             modifier = Modifier.clickable { showTimePicker = true }
                         )
@@ -171,7 +179,7 @@ fun NotificationSettingsScreen(
                                 val dialog = TimePickerDialog(
                                     context,
                                     { _, h, m -> viewModel.onTimeChanged(h, m); showTimePicker = false },
-                                    setting.hour, setting.minute, true
+                                    setting.hour, setting.minute, is24Hour
                                 )
                                 dialog.setOnDismissListener { showTimePicker = false }
                                 dialog.show()
@@ -217,8 +225,9 @@ fun NotificationSettingsScreen(
                     item {
                         val label = if (setting.frequency == NotificationFrequency.ONE_TIME)
                             "Date & Time" else "Start Date & Time"
+                        val pattern = if (is24Hour) "MMM d, yyyy  HH:mm" else "MMM d, yyyy  h:mm a"
                         val dateDisplay = if (setting.oneTimeEpochMillis > 0)
-                            SimpleDateFormat("MMM d, yyyy  HH:mm", Locale.getDefault())
+                            SimpleDateFormat(pattern, Locale.getDefault())
                                 .format(Date(setting.oneTimeEpochMillis))
                         else "Tap to set"
 
@@ -246,7 +255,7 @@ fun NotificationSettingsScreen(
                                                 viewModel.onOneTimeDateTimeChanged(picked)
                                                 showDatePicker = false
                                             },
-                                            cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), true
+                                            cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), is24Hour
                                         )
                                         timePicker.setOnDismissListener { showDatePicker = false }
                                         timePicker.show()

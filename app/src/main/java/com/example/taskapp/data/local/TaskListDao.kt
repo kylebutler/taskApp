@@ -10,13 +10,13 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface TaskListDao {
-    @Query("SELECT * FROM task_lists WHERE isDeleted = 0 AND isArchived = 0 ORDER BY createdAt DESC")
+    @Query("SELECT * FROM task_lists WHERE isDeleted = 0 AND isArchived = 0 ORDER BY position ASC, createdAt DESC")
     fun getAllLists(): Flow<List<TaskListEntity>>
 
     @Query("SELECT * FROM task_lists WHERE isDeleted = 1 ORDER BY deletedAt DESC")
     fun getTrashLists(): Flow<List<TaskListEntity>>
 
-    @Query("SELECT * FROM task_lists WHERE isArchived = 1 AND isDeleted = 0 ORDER BY createdAt DESC")
+    @Query("SELECT * FROM task_lists WHERE isArchived = 1 AND isDeleted = 0 ORDER BY position ASC, createdAt DESC")
     fun getArchivedLists(): Flow<List<TaskListEntity>>
 
     @Query("SELECT * FROM task_lists WHERE id = :listId")
@@ -30,6 +30,9 @@ interface TaskListDao {
 
     @Update
     suspend fun updateList(list: TaskListEntity)
+
+    @Update
+    suspend fun updateLists(lists: List<TaskListEntity>)
 
     @Delete
     suspend fun deleteList(list: TaskListEntity)

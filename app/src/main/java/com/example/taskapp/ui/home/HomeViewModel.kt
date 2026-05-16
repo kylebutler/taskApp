@@ -39,6 +39,10 @@ class HomeViewModel(private val repo: TaskRepository) : ViewModel() {
         moveToTrash(list)
     }
 
+    fun reorderLists(reorderedLists: List<TaskList>) {
+        viewModelScope.launch { repo.reorderLists(reorderedLists) }
+    }
+
     companion object {
         fun Factory(repo: TaskRepository): ViewModelProvider.Factory =
             ViewModelFactory { HomeViewModel(repo) }

@@ -1,5 +1,8 @@
 package com.example.taskapp.ui.home
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,12 +14,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
@@ -37,19 +42,26 @@ import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.taskapp.domain.model.ListType
@@ -66,6 +78,12 @@ fun HomeScreen(
     onSettingsClick: () -> Unit
 ) {
     val lists by viewModel.lists.collectAsStateWithLifecycle()
+    val localLists = remember { mutableStateListOf<TaskList>() }
+    var isDragging by remember { mutableStateOf(false) }
+    var draggedIndex by remember { mutableStateOf<Int?>(null) }
+    var dragOffsetY by remember { mutableStateOf(0f) }
+    val listState = rememberLazyListState()
+
     var showCreateDialog by remember { mutableStateOf(false) }
     var newListTitle by remember { mutableStateOf("") }
     var newListType by remember { mutableStateOf(ListType.CHECKLIST) }
@@ -75,6 +93,13 @@ fun HomeScreen(
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(lists) {
+        if (!isDragging) {
+            localLists.clear()
+            localLists.addAll(lists)
+        }
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -149,7 +174,7 @@ fun HomeScreen(
                 }
             }
         ) { padding ->
-            if (lists.isEmpty()) {
+            if (lists.isEmpty() && localLists.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize().padding(padding),
                     contentAlignment = Alignment.Center
@@ -158,6 +183,7 @@ fun HomeScreen(
                 }
             } else {
                 LazyColumn(
+                    state = listState,
                     contentPadding = PaddingValues(
                         start = 16.dp, end = 16.dp,
                         top = padding.calculateTopPadding() + 8.dp,
@@ -165,12 +191,45 @@ fun HomeScreen(
                     ),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(lists, key = { it.id }) { list ->
-                        TaskListCard(
+                    itemsIndexed(localLists, key = { _, list -> list.id }) { index, list ->
+                        val isDraggedItem = draggedIndex == index
+                        val elevation by animateDpAsState(
+                            targetValue = if (isDraggedItem) 8.dp else 0.dp,
+                            label = "drag_elevation"
+                        )
+                        DraggableListCard(
                             list = list,
+                            isDragged = isDraggedItem,
+                            elevation = elevation,
+                            dragOffsetY = if (isDraggedItem) dragOffsetY else 0f,
                             onClick = { onListClick(list.id) },
                             onArchive = { listToArchive = list },
-                            onDelete = { listToDelete = list }
+                            onDelete = { listToDelete = list },
+                            onDragStart = {
+                                isDragging = true
+                                draggedIndex = index
+                                dragOffsetY = 0f
+                            },
+                            onDrag = { delta ->
+                                dragOffsetY += delta
+                                val currentDragged = draggedIndex ?: return@DraggableListCard
+                                val itemHeightPx = listState.layoutInfo.visibleItemsInfo
+                                    .find { it.key == list.id }?.size?.toFloat() ?: 80f
+                                val rawTarget = currentDragged + (dragOffsetY / itemHeightPx).toInt()
+                                val targetIndex = rawTarget.coerceIn(0, localLists.size - 1)
+                                if (targetIndex != currentDragged) {
+                                    val moved = localLists.removeAt(currentDragged)
+                                    localLists.add(targetIndex, moved)
+                                    dragOffsetY -= (targetIndex - currentDragged) * itemHeightPx
+                                    draggedIndex = targetIndex
+                                }
+                            },
+                            onDragEnd = {
+                                isDragging = false
+                                draggedIndex = null
+                                dragOffsetY = 0f
+                                viewModel.reorderLists(localLists.toList())
+                            }
                         )
                     }
                 }
@@ -292,64 +351,98 @@ fun HomeScreen(
 }
 
 @Composable
-private fun TaskListCard(
+private fun DraggableListCard(
     list: TaskList,
+    isDragged: Boolean,
+    elevation: Dp,
+    dragOffsetY: Float,
     onClick: () -> Unit,
     onArchive: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onDragStart: () -> Unit,
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit
 ) {
     val backgroundColor = list.colorArgb?.let { Color(it) } ?: MaterialTheme.colorScheme.surfaceVariant
     val contentColor = if (list.colorArgb != null) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-    
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = backgroundColor,
-            contentColor = contentColor
-        )
+
+    val currentOnDragStart by rememberUpdatedState(onDragStart)
+    val currentOnDrag by rememberUpdatedState(onDrag)
+    val currentOnDragEnd by rememberUpdatedState(onDragEnd)
+
+    Surface(
+        shadowElevation = elevation,
+        color = Color.Transparent,
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer { translationY = if (isDragged) dragOffsetY else 0f }
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = list.title,
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.weight(1f),
-                color = contentColor
+        Card(
+            onClick = onClick,
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = backgroundColor,
+                contentColor = contentColor
             )
-            if (list.isNotificationEnabled) {
+        ) {
+            Row(
+                modifier = Modifier.padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Icon(
-                    imageVector = Icons.Default.Notifications,
-                    contentDescription = "Notification enabled",
-                    tint = contentColor.copy(alpha = 0.8f),
-                    modifier = Modifier.padding(end = 8.dp).size(20.dp)
+                    imageVector = Icons.Default.DragHandle,
+                    contentDescription = "Drag to reorder",
+                    tint = contentColor.copy(alpha = 0.6f),
+                    modifier = Modifier
+                        .pointerInput(list.id) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = { currentOnDragStart() },
+                                onDrag = { _, dragAmount -> currentOnDrag(dragAmount.y) },
+                                onDragEnd = { currentOnDragEnd() },
+                                onDragCancel = { currentOnDragEnd() }
+                            )
+                        }
+                        .padding(8.dp)
                 )
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (list.isLocked) {
+
+                Text(
+                    text = list.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                    color = contentColor
+                )
+                if (list.isNotificationEnabled) {
                     Icon(
-                        imageVector = Icons.Default.Lock,
-                        contentDescription = "Locked",
-                        tint = contentColor.copy(alpha = 0.6f),
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = "Notification enabled",
+                        tint = contentColor.copy(alpha = 0.8f),
                         modifier = Modifier.padding(end = 8.dp).size(20.dp)
                     )
                 }
-                IconButton(onClick = onArchive) {
-                    Icon(
-                        imageVector = Icons.Default.Archive,
-                        contentDescription = "Archive list",
-                        tint = contentColor.copy(alpha = 0.8f)
-                    )
-                }
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete list",
-                        tint = contentColor.copy(alpha = 0.8f)
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (list.isLocked) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "Locked",
+                            tint = contentColor.copy(alpha = 0.6f),
+                            modifier = Modifier.padding(end = 8.dp).size(20.dp)
+                        )
+                    }
+                    IconButton(onClick = onArchive) {
+                        Icon(
+                            imageVector = Icons.Default.Archive,
+                            contentDescription = "Archive list",
+                            tint = contentColor.copy(alpha = 0.8f)
+                        )
+                    }
+                    IconButton(onClick = onDelete) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete list",
+                            tint = contentColor.copy(alpha = 0.8f)
+                        )
+                    }
                 }
             }
         }

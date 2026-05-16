@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [TaskListEntity::class, TaskItemEntity::class, NotificationSettingEntity::class],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class TaskAppDatabase : RoomDatabase() {
@@ -58,6 +58,12 @@ abstract class TaskAppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE task_lists ADD COLUMN position INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun getInstance(context: Context): TaskAppDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -65,7 +71,7 @@ abstract class TaskAppDatabase : RoomDatabase() {
                     TaskAppDatabase::class.java,
                     "taskapp.db"
                 )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                 .fallbackToDestructiveMigration()
                 .build().also { INSTANCE = it }
             }
