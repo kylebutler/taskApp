@@ -155,8 +155,9 @@ fun NotificationSettingsScreen(
                     }
                 }
 
-                // Time picker — shown for DAILY, WEEKLY, ONE_TIME (not CUSTOM_INTERVAL which uses start date/time)
-                if (setting.frequency != NotificationFrequency.CUSTOM_INTERVAL) {
+                // Time picker — shown only for DAILY and WEEKLY
+                if (setting.frequency == NotificationFrequency.DAILY || 
+                    setting.frequency == NotificationFrequency.WEEKLY) {
                     item { HorizontalDivider() }
                     item {
                         var showTimePicker by remember { mutableStateOf(false) }
