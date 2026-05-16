@@ -29,7 +29,16 @@ data class ListDetailUiState(
     val items: List<TaskItem> = emptyList(),
     val isEditingTitle: Boolean = false,
     val newItemText: String = "",
-    val notificationDescription: String? = null
+    val notificationDescription: String? = null,
+    val canUndo: Boolean = false,
+    val canRedo: Boolean = false
+)
+
+private data class ListSnapshot(
+    val title: String,
+    val colorArgb: Int?,
+    val textContent: String?,
+    val items: List<TaskItem>
 )
 
 class ListDetailViewModel(
@@ -44,6 +53,10 @@ class ListDetailViewModel(
     private val _uiState = MutableStateFlow(ListDetailUiState())
     val uiState: StateFlow<ListDetailUiState> = _uiState.asStateFlow()
 
+    private val undoStack = mutableListOf<ListSnapshot>()
+    private val redoStack = mutableListOf<ListSnapshot>()
+    private var isUndoRedoAction = false
+
     init {
         viewModelScope.launch {
             combine(
@@ -54,7 +67,9 @@ class ListDetailViewModel(
                 _uiState.value.copy(
                     taskList = list,
                     items = items,
-                    notificationDescription = formatNotificationSchedule(setting)
+                    notificationDescription = formatNotificationSchedule(setting),
+                    canUndo = undoStack.isNotEmpty(),
+                    canRedo = redoStack.isNotEmpty()
                 )
             }.collect { state ->
                 _uiState.value = state
@@ -94,6 +109,66 @@ class ListDetailViewModel(
         }
     }
 
+    private fun captureSnapshot(): ListSnapshot? {
+        val list = _uiState.value.taskList ?: return null
+        return ListSnapshot(
+            title = list.title,
+            colorArgb = list.colorArgb,
+            textContent = list.textContent,
+            items = _uiState.value.items.map { it.copy() }
+        )
+    }
+
+    private fun saveHistory() {
+        if (isUndoRedoAction) return
+        captureSnapshot()?.let {
+            undoStack.add(it)
+            if (undoStack.size > 50) undoStack.removeAt(0)
+            redoStack.clear()
+            updateUndoRedoStates()
+        }
+    }
+
+    private fun updateUndoRedoStates() {
+        _uiState.update { it.copy(canUndo = undoStack.isNotEmpty(), canRedo = redoStack.isNotEmpty()) }
+    }
+
+    fun undo() {
+        val current = captureSnapshot() ?: return
+        if (undoStack.isEmpty()) return
+        
+        isUndoRedoAction = true
+        val target = undoStack.removeAt(undoStack.size - 1)
+        redoStack.add(current)
+        
+        applySnapshot(target)
+    }
+
+    fun redo() {
+        val current = captureSnapshot() ?: return
+        if (redoStack.isEmpty()) return
+        
+        isUndoRedoAction = true
+        val target = redoStack.removeAt(redoStack.size - 1)
+        undoStack.add(current)
+        
+        applySnapshot(target)
+    }
+
+    private fun applySnapshot(snapshot: ListSnapshot) {
+        val list = _uiState.value.taskList ?: return
+        viewModelScope.launch {
+            repo.updateList(list.copy(
+                title = snapshot.title,
+                colorArgb = snapshot.colorArgb,
+                textContent = snapshot.textContent
+            ))
+            repo.syncItems(listId, snapshot.items)
+            isUndoRedoAction = false
+            updateUndoRedoStates()
+        }
+    }
+
     fun setTitleEditing(editing: Boolean) = _uiState.update { it.copy(isEditingTitle = editing) }
 
     fun toggleLock() {
@@ -112,6 +187,8 @@ class ListDetailViewModel(
 
     fun saveTitle(newTitle: String) {
         val list = _uiState.value.taskList ?: return
+        if (list.title == newTitle.trim()) return
+        saveHistory()
         viewModelScope.launch {
             repo.updateList(list.copy(title = newTitle.trim().ifEmpty { list.title }))
         }
@@ -120,6 +197,8 @@ class ListDetailViewModel(
 
     fun saveColor(colorArgb: Int) {
         val list = _uiState.value.taskList ?: return
+        if (list.colorArgb == colorArgb) return
+        saveHistory()
         viewModelScope.launch {
             repo.updateList(list.copy(colorArgb = colorArgb))
         }
@@ -128,6 +207,7 @@ class ListDetailViewModel(
     fun updateTextContent(text: String) {
         val list = _uiState.value.taskList ?: return
         if (list.textContent == text) return
+        saveHistory()
         viewModelScope.launch {
             repo.updateList(list.copy(textContent = text))
         }
@@ -138,25 +218,31 @@ class ListDetailViewModel(
     fun addItem() {
         val text = _uiState.value.newItemText.trim()
         if (text.isEmpty()) return
+        saveHistory()
         val nextPos = _uiState.value.items.size
         viewModelScope.launch { repo.addItem(listId, text, nextPos) }
         _uiState.update { it.copy(newItemText = "") }
     }
 
     fun toggleItem(item: TaskItem) {
+        saveHistory()
         viewModelScope.launch { repo.updateItem(item.copy(isChecked = !item.isChecked)) }
     }
 
     fun updateItemText(item: TaskItem, newText: String) {
         if (item.text == newText) return
+        saveHistory()
         viewModelScope.launch { repo.updateItem(item.copy(text = newText)) }
     }
 
     fun deleteItem(item: TaskItem) {
+        saveHistory()
         viewModelScope.launch { repo.deleteItem(item) }
     }
 
     fun reorderItems(reorderedItems: List<TaskItem>) {
+        if (reorderedItems == _uiState.value.items) return
+        saveHistory()
         viewModelScope.launch { repo.reorderItems(reorderedItems) }
     }
 

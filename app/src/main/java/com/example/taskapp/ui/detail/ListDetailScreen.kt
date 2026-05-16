@@ -25,6 +25,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Redo
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
@@ -161,7 +163,34 @@ fun ListDetailScreen(
                 },
                 actions = {
                     IconButton(
-                        onClick = { viewModel.toggleLock() },
+                        onClick = { viewModel.undo() },
+                        enabled = uiState.canUndo && uiState.taskList?.isLocked == false,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Undo,
+                            contentDescription = "Undo",
+                            tint = if (uiState.canUndo && uiState.taskList?.isLocked == false) contentColor else contentColor.copy(alpha = 0.38f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = { viewModel.redo() },
+                        enabled = uiState.canRedo && uiState.taskList?.isLocked == false,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Redo,
+                            contentDescription = "Redo",
+                            tint = if (uiState.canRedo && uiState.taskList?.isLocked == false) contentColor else contentColor.copy(alpha = 0.38f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = { 
+                            viewModel.toggleLock()
+                            showColorPicker = false
+                        },
                         modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
@@ -173,23 +202,25 @@ fun ListDetailScreen(
                     }
                     IconButton(
                         onClick = { showTrashConfirm = true },
+                        enabled = uiState.taskList?.isLocked == false,
                         modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Delete,
                             contentDescription = "Move to Trash",
-                            tint = contentColor,
+                            tint = if (uiState.taskList?.isLocked == false) contentColor else contentColor.copy(alpha = 0.38f),
                             modifier = Modifier.size(20.dp)
                         )
                     }
                     IconButton(
                         onClick = { showColorPicker = !showColorPicker },
+                        enabled = uiState.taskList?.isLocked == false,
                         modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Palette,
                             contentDescription = "Pick color",
-                            tint = contentColor,
+                            tint = if (uiState.taskList?.isLocked == false) contentColor else contentColor.copy(alpha = 0.38f),
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -252,7 +283,7 @@ fun ListDetailScreen(
                 }
             }
 
-            if (showColorPicker) {
+            if (showColorPicker && !isLocked) {
                 LazyRow(
                     modifier = Modifier
                         .fillMaxWidth()

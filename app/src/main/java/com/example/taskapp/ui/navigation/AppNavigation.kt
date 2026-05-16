@@ -20,6 +20,7 @@ import com.example.taskapp.ui.home.HomeScreen
 import com.example.taskapp.ui.home.HomeViewModel
 import com.example.taskapp.ui.notifications.NotificationSettingsScreen
 import com.example.taskapp.ui.notifications.NotificationSettingsViewModel
+import com.example.taskapp.ui.settings.SettingsScreen
 import com.example.taskapp.ui.trash.TrashScreen
 import com.example.taskapp.ui.trash.TrashViewModel
 
@@ -27,6 +28,7 @@ sealed class Screen(val route: String) {
     data object Home : Screen("home")
     data object Trash : Screen("trash")
     data object Archive : Screen("archive")
+    data object Settings : Screen("settings")
     data object ListDetail : Screen("list_detail/{listId}") {
         fun createRoute(listId: Long) = "list_detail/$listId"
     }
@@ -50,7 +52,8 @@ fun AppNavigation(
                 viewModel = viewModel(factory = HomeViewModel.Factory(app.taskRepository)),
                 onListClick = { listId -> navController.navigate(Screen.ListDetail.createRoute(listId)) },
                 onTrashClick = { navController.navigate(Screen.Trash.route) },
-                onArchiveClick = { navController.navigate(Screen.Archive.route) }
+                onArchiveClick = { navController.navigate(Screen.Archive.route) },
+                onSettingsClick = { navController.navigate(Screen.Settings.route) }
             )
         }
 
@@ -67,6 +70,10 @@ fun AppNavigation(
                 onBack = { navController.popBackStack() },
                 onListClick = { listId -> navController.navigate(Screen.ListDetail.createRoute(listId)) }
             )
+        }
+
+        composable(Screen.Settings.route) {
+            SettingsScreen(onBack = { navController.popBackStack() })
         }
 
         composable(

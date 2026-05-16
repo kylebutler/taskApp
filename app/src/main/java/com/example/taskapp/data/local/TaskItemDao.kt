@@ -16,6 +16,12 @@ interface TaskItemDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertItem(item: TaskItemEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertItems(items: List<TaskItemEntity>)
+
+    @Query("DELETE FROM task_items WHERE listId = :listId")
+    suspend fun deleteItemsForList(listId: Long)
+
     @Update
     suspend fun updateItem(item: TaskItemEntity)
 

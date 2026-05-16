@@ -89,4 +89,9 @@ class TaskRepository(private val db: TaskAppDatabase) {
             items.mapIndexed { index, item -> item.copy(position = index).toEntity() }
         )
     }
+
+    suspend fun syncItems(listId: Long, items: List<TaskItem>) {
+        db.taskItemDao().deleteItemsForList(listId)
+        db.taskItemDao().insertItems(items.map { it.toEntity() })
+    }
 }

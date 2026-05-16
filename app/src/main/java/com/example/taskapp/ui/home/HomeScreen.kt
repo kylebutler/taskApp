@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -60,7 +62,8 @@ fun HomeScreen(
     viewModel: HomeViewModel,
     onListClick: (Long) -> Unit,
     onTrashClick: () -> Unit,
-    onArchiveClick: () -> Unit
+    onArchiveClick: () -> Unit,
+    onSettingsClick: () -> Unit
 ) {
     val lists by viewModel.lists.collectAsStateWithLifecycle()
     var showCreateDialog by remember { mutableStateOf(false) }
@@ -112,6 +115,19 @@ fun HomeScreen(
                     },
                     icon = { Icon(Icons.Default.DeleteForever, null) },
                     modifier = Modifier.padding(horizontal = 12.dp)
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                NavigationDrawerItem(
+                    label = { Text("Settings") },
+                    selected = false,
+                    onClick = {
+                        scope.launch {
+                            drawerState.close()
+                            onSettingsClick()
+                        }
+                    },
+                    icon = { Icon(Icons.Default.Settings, null) },
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp)
                 )
             }
         }
