@@ -2,6 +2,7 @@ package com.example.taskapp.ui.detail
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -144,64 +145,63 @@ fun ListDetailScreen(
         contentColor = contentColor,
         topBar = {
             TopAppBar(
-                title = {
-                    if (uiState.isEditingTitle) {
-                        var editText by remember { mutableStateOf(uiState.taskList?.title ?: "") }
-                        OutlinedTextField(
-                            value = editText,
-                            onValueChange = { editText = it },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        DisposableEffect(Unit) {
-                            onDispose { if (editText.isNotBlank()) viewModel.saveTitle(editText) }
-                        }
-                    } else {
-                        TextButton(onClick = { if (uiState.taskList?.isLocked == false) viewModel.setTitleEditing(true) }) {
-                            Text(
-                                text = uiState.taskList?.title ?: "",
-                                style = MaterialTheme.typography.titleLarge,
-                                color = contentColor
-                            )
-                        }
-                    }
-                },
+                title = {},
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier.size(40.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = contentColor
+                            tint = contentColor,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 },
                 actions = {
-                    IconButton(onClick = { viewModel.toggleLock() }) {
+                    IconButton(
+                        onClick = { viewModel.toggleLock() },
+                        modifier = Modifier.size(40.dp)
+                    ) {
                         Icon(
                             imageVector = if (uiState.taskList?.isLocked == true) Icons.Default.Lock else Icons.Default.LockOpen,
                             contentDescription = if (uiState.taskList?.isLocked == true) "Unlock" else "Lock",
-                            tint = contentColor
+                            tint = contentColor,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
-                    IconButton(onClick = { showTrashConfirm = true }) {
+                    IconButton(
+                        onClick = { showTrashConfirm = true },
+                        modifier = Modifier.size(40.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Delete,
                             contentDescription = "Move to Trash",
-                            tint = contentColor
+                            tint = contentColor,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
-                    IconButton(onClick = { showColorPicker = !showColorPicker }) {
+                    IconButton(
+                        onClick = { showColorPicker = !showColorPicker },
+                        modifier = Modifier.size(40.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Palette,
                             contentDescription = "Pick color",
-                            tint = contentColor
+                            tint = contentColor,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
-                    IconButton(onClick = onOpenNotificationSettings) {
+                    IconButton(
+                        onClick = onOpenNotificationSettings,
+                        modifier = Modifier.size(40.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Notifications,
                             contentDescription = "Notification settings",
-                            tint = contentColor
+                            tint = contentColor,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 },
@@ -217,6 +217,41 @@ fun ListDetailScreen(
         val list = uiState.taskList
         val isLocked = list?.isLocked == true
         Column(modifier = Modifier.padding(padding)) {
+            // Title row
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                if (uiState.isEditingTitle) {
+                    var editText by remember { mutableStateOf(uiState.taskList?.title ?: "") }
+                    BasicTextField(
+                        value = editText,
+                        onValueChange = { editText = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = MaterialTheme.typography.headlineMedium.copy(color = contentColor),
+                        cursorBrush = SolidColor(contentColor),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { 
+                            if (editText.isNotBlank()) viewModel.saveTitle(editText)
+                            viewModel.setTitleEditing(false)
+                        })
+                    )
+                    DisposableEffect(Unit) {
+                        onDispose { if (editText.isNotBlank()) viewModel.saveTitle(editText) }
+                    }
+                } else {
+                    Text(
+                        text = uiState.taskList?.title ?: "",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = contentColor,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = !isLocked) { viewModel.setTitleEditing(true) }
+                    )
+                }
+            }
+
             if (showColorPicker) {
                 LazyRow(
                     modifier = Modifier
