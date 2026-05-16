@@ -74,7 +74,7 @@ class ListDetailViewModel(
         return when (setting.frequency) {
             NotificationFrequency.DAILY -> "Daily at $timeStr"
             NotificationFrequency.WEEKLY -> {
-                val days = listOf("Su", "Mo", "Tu", "We", "Th", "Fr", "Sa")
+                val days = listOf("Su", "Mo", "Tu", "We", "Th", "Fri", "Sa")
                 val selectedDays = days.filterIndexed { index, _ -> (setting.weekDaysMask and (1 shl index)) != 0 }
                 if (selectedDays.isEmpty()) "Weekly (no days selected)"
                 else "Weekly on ${selectedDays.joinToString(", ")} at $timeStr"

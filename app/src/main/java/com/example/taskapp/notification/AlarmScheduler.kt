@@ -15,7 +15,6 @@ class AlarmScheduler(private val context: Context) {
     private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
     fun schedule(setting: NotificationSetting) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) return
         when (setting.frequency) {
             NotificationFrequency.DAILY -> scheduleDailyAlarm(setting)
             NotificationFrequency.WEEKLY -> scheduleWeeklyAlarms(setting)
@@ -24,9 +23,16 @@ class AlarmScheduler(private val context: Context) {
         }
     }
 
+    private fun setAlarm(triggerAtMillis: Long, pendingIntent: PendingIntent) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && alarmManager.canScheduleExactAlarms()) {
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+        } else {
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+        }
+    }
+
     private fun scheduleDailyAlarm(setting: NotificationSetting) {
-        alarmManager.setExactAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP,
+        setAlarm(
             nextOccurrence(setting.hour, setting.minute, dayOfWeek = null),
             buildPendingIntent(setting.listId, setting.listId.toInt())
         )
@@ -36,8 +42,7 @@ class AlarmScheduler(private val context: Context) {
         for (dayIndex in 0..6) {
             val bit = 1 shl dayIndex
             if ((setting.weekDaysMask and bit) == 0) continue
-            alarmManager.setExactAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
+            setAlarm(
                 nextOccurrence(setting.hour, setting.minute, dayOfWeek = dayIndex + 1),
                 buildPendingIntent(
                     setting.listId,
@@ -50,8 +55,7 @@ class AlarmScheduler(private val context: Context) {
 
     private fun scheduleOneTimeAlarm(setting: NotificationSetting) {
         if (setting.oneTimeEpochMillis <= System.currentTimeMillis()) return
-        alarmManager.setExactAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP,
+        setAlarm(
             setting.oneTimeEpochMillis,
             buildPendingIntent(setting.listId, setting.listId.toInt())
         )
@@ -62,8 +66,7 @@ class AlarmScheduler(private val context: Context) {
             setting.oneTimeEpochMillis
         else
             System.currentTimeMillis() + intervalMillis(setting.intervalValue, setting.intervalUnit)
-        alarmManager.setExactAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP,
+        setAlarm(
             firstFire,
             buildPendingIntent(setting.listId, setting.listId.toInt())
         )
@@ -71,9 +74,7 @@ class AlarmScheduler(private val context: Context) {
 
     // Called from NotificationReceiver to reschedule the next custom-interval fire.
     fun scheduleNextCustomInterval(listId: Long, intervalValue: Int, intervalUnit: IntervalUnit) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) return
-        alarmManager.setExactAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP,
+        setAlarm(
             System.currentTimeMillis() + intervalMillis(intervalValue, intervalUnit),
             buildPendingIntent(listId, listId.toInt())
         )

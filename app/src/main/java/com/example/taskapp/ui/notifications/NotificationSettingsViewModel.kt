@@ -10,8 +10,11 @@ import com.example.taskapp.domain.model.NotificationFrequency
 import com.example.taskapp.domain.model.NotificationSetting
 import com.example.taskapp.notification.AlarmScheduler
 import com.example.taskapp.util.ViewModelFactory
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
@@ -32,6 +35,9 @@ class NotificationSettingsViewModel(
 
     private val _uiState = MutableStateFlow(NotificationSettingsUiState())
     val uiState: StateFlow<NotificationSettingsUiState> = _uiState.asStateFlow()
+
+    private val _saveFinished = MutableSharedFlow<Unit>()
+    val saveFinished: SharedFlow<Unit> = _saveFinished.asSharedFlow()
 
     init {
         viewModelScope.launch {
@@ -79,6 +85,7 @@ class NotificationSettingsViewModel(
             alarmScheduler.cancel(listId)
             if (setting.isEnabled) alarmScheduler.schedule(setting)
             _uiState.update { it.copy(isSaving = false) }
+            _saveFinished.emit(Unit)
         }
     }
 

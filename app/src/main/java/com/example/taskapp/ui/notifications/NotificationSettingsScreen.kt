@@ -26,11 +26,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.taskapp.domain.model.IntervalUnit
 import com.example.taskapp.domain.model.NotificationFrequency
@@ -57,7 +60,15 @@ fun NotificationSettingsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val setting = uiState.setting ?: return
     val context = LocalContext.current
-    val dayLabels = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+    val dayLabels = listOf("Su", "Mo", "Tu", "We", "Th", "Fri", "Sa")
+
+    val notificationsEnabled = remember {
+        NotificationManagerCompat.from(context).areNotificationsEnabled()
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.saveFinished.collect { onBack() }
+    }
 
     Scaffold(
         topBar = {
@@ -72,13 +83,32 @@ fun NotificationSettingsScreen(
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { viewModel.saveSetting(); onBack() },
+                onClick = { viewModel.saveSetting() },
                 text = { Text(if (uiState.isSaving) "Saving…" else "Save") },
                 icon = { Icon(Icons.Default.Check, null) }
             )
         }
     ) { padding ->
         LazyColumn(contentPadding = padding) {
+            if (!notificationsEnabled) {
+                item {
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        Text(
+                            text = "Notifications are disabled in system settings. You won't receive any alerts until you enable them.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                }
+            }
+
             item {
                 ListItem(
                     headlineContent = { Text("Enable notifications") },
