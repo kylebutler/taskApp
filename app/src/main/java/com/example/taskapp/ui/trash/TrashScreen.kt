@@ -11,8 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.RestoreFromTrash
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
@@ -40,7 +40,7 @@ import com.example.taskapp.domain.model.TaskList
 @Composable
 fun TrashScreen(
     viewModel: TrashViewModel,
-    onBack: () -> Unit
+    onOpenDrawer: () -> Unit
 ) {
     val lists by viewModel.lists.collectAsStateWithLifecycle()
     var listToDeletePermanently by remember { mutableStateOf<TaskList?>(null) }
@@ -77,8 +77,8 @@ fun TrashScreen(
             TopAppBar(
                 title = { Text("Trash") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                    IconButton(onClick = onOpenDrawer) {
+                        Icon(Icons.Default.Menu, "Menu")
                     }
                 }
             )

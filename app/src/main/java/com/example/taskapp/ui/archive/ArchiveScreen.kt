@@ -11,9 +11,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material3.AlertDialog
@@ -44,7 +44,7 @@ import com.example.taskapp.domain.model.TaskList
 @Composable
 fun ArchiveScreen(
     viewModel: ArchiveViewModel,
-    onBack: () -> Unit,
+    onOpenDrawer: () -> Unit,
     onListClick: (Long) -> Unit
 ) {
     val lists by viewModel.lists.collectAsStateWithLifecycle()
@@ -82,8 +82,8 @@ fun ArchiveScreen(
             TopAppBar(
                 title = { Text("Archive") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                    IconButton(onClick = onOpenDrawer) {
+                        Icon(Icons.Default.Menu, "Menu")
                     }
                 }
             )

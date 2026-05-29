@@ -1,13 +1,33 @@
 package com.example.taskapp.ui.navigation
 
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.taskapp.TaskApp
@@ -23,6 +43,7 @@ import com.example.taskapp.ui.notifications.NotificationSettingsViewModel
 import com.example.taskapp.ui.settings.SettingsScreen
 import com.example.taskapp.ui.trash.TrashScreen
 import com.example.taskapp.ui.trash.TrashViewModel
+import kotlinx.coroutines.launch
 
 sealed class Screen(val route: String) {
     data object Home : Screen("home")
@@ -45,70 +66,150 @@ fun AppNavigation(
     val context = LocalContext.current
     val app = context.applicationContext as? TaskApp ?: return
 
-    NavHost(navController = navController, startDestination = Screen.Home.route) {
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
 
-        composable(Screen.Home.route) {
-            HomeScreen(
-                viewModel = viewModel(factory = HomeViewModel.Factory(app.taskRepository)),
-                onListClick = { listId -> navController.navigate(Screen.ListDetail.createRoute(listId)) },
-                onTrashClick = { navController.navigate(Screen.Trash.route) },
-                onArchiveClick = { navController.navigate(Screen.Archive.route) },
-                onSettingsClick = { navController.navigate(Screen.Settings.route) }
-            )
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        gesturesEnabled = currentRoute in listOf(Screen.Home.route, Screen.Archive.route, Screen.Trash.route, Screen.Settings.route),
+        drawerContent = {
+            ModalDrawerSheet {
+                Text(
+                    "TaskApp",
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.padding(16.dp)
+                )
+                NavigationDrawerItem(
+                    label = { Text("My Lists") },
+                    selected = currentRoute == Screen.Home.route,
+                    onClick = {
+                        scope.launch {
+                            drawerState.close()
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(Screen.Home.route) { inclusive = true }
+                            }
+                        }
+                    },
+                    icon = { Icon(Icons.Default.Menu, null) },
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+                NavigationDrawerItem(
+                    label = { Text("Archive") },
+                    selected = currentRoute == Screen.Archive.route,
+                    onClick = {
+                        scope.launch {
+                            drawerState.close()
+                            if (currentRoute != Screen.Archive.route) {
+                                navController.navigate(Screen.Archive.route) {
+                                    popUpTo(Screen.Home.route)
+                                }
+                            }
+                        }
+                    },
+                    icon = { Icon(Icons.Default.Archive, null) },
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+                NavigationDrawerItem(
+                    label = { Text("Trash") },
+                    selected = currentRoute == Screen.Trash.route,
+                    onClick = {
+                        scope.launch {
+                            drawerState.close()
+                            if (currentRoute != Screen.Trash.route) {
+                                navController.navigate(Screen.Trash.route) {
+                                    popUpTo(Screen.Home.route)
+                                }
+                            }
+                        }
+                    },
+                    icon = { Icon(Icons.Default.DeleteForever, null) },
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                NavigationDrawerItem(
+                    label = { Text("Settings") },
+                    selected = currentRoute == Screen.Settings.route,
+                    onClick = {
+                        scope.launch {
+                            drawerState.close()
+                            if (currentRoute != Screen.Settings.route) {
+                                navController.navigate(Screen.Settings.route) {
+                                    popUpTo(Screen.Home.route)
+                                }
+                            }
+                        }
+                    },
+                    icon = { Icon(Icons.Default.Settings, null) },
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp)
+                )
+            }
         }
+    ) {
+        NavHost(navController = navController, startDestination = Screen.Home.route) {
 
-        composable(Screen.Trash.route) {
-            TrashScreen(
-                viewModel = viewModel(factory = TrashViewModel.Factory(app.taskRepository)),
-                onBack = { navController.popBackStack() }
-            )
-        }
+            composable(Screen.Home.route) {
+                HomeScreen(
+                    viewModel = viewModel(factory = HomeViewModel.Factory(app.taskRepository)),
+                    onOpenDrawer = { scope.launch { drawerState.open() } },
+                    onListClick = { listId -> navController.navigate(Screen.ListDetail.createRoute(listId)) }
+                )
+            }
 
-        composable(Screen.Archive.route) {
-            ArchiveScreen(
-                viewModel = viewModel(factory = ArchiveViewModel.Factory(app.taskRepository)),
-                onBack = { navController.popBackStack() },
-                onListClick = { listId -> navController.navigate(Screen.ListDetail.createRoute(listId)) }
-            )
-        }
+            composable(Screen.Trash.route) {
+                TrashScreen(
+                    viewModel = viewModel(factory = TrashViewModel.Factory(app.taskRepository)),
+                    onOpenDrawer = { scope.launch { drawerState.open() } }
+                )
+            }
 
-        composable(Screen.Settings.route) {
-            SettingsScreen(onBack = { navController.popBackStack() })
-        }
+            composable(Screen.Archive.route) {
+                ArchiveScreen(
+                    viewModel = viewModel(factory = ArchiveViewModel.Factory(app.taskRepository)),
+                    onOpenDrawer = { scope.launch { drawerState.open() } },
+                    onListClick = { listId -> navController.navigate(Screen.ListDetail.createRoute(listId)) }
+                )
+            }
 
-        composable(
-            route = Screen.ListDetail.route,
-            arguments = listOf(navArgument("listId") { type = NavType.LongType })
-        ) { backStack ->
-            val listId = backStack.arguments!!.getLong("listId")
-            ListDetailScreen(
-                viewModel = viewModel(
-                    factory = ListDetailViewModel.Factory(app, app.taskRepository, app.notificationRepository, listId)
-                ),
-                onBack = { navController.popBackStack() },
-                onOpenNotificationSettings = {
-                    navController.navigate(Screen.NotificationSettings.createRoute(listId))
-                }
-            )
-        }
+            composable(Screen.Settings.route) {
+                SettingsScreen(onOpenDrawer = { scope.launch { drawerState.open() } })
+            }
 
-        composable(
-            route = Screen.NotificationSettings.route,
-            arguments = listOf(navArgument("listId") { type = NavType.LongType })
-        ) { backStack ->
-            val listId = backStack.arguments!!.getLong("listId")
-            val ctx = LocalContext.current
-            NotificationSettingsScreen(
-                viewModel = viewModel(
-                    factory = NotificationSettingsViewModel.Factory(
-                        app.notificationRepository,
-                        app.taskRepository,
-                        AlarmScheduler(ctx),
-                        listId
-                    )
-                ),
-                onBack = { navController.popBackStack() }
-            )
+            composable(
+                route = Screen.ListDetail.route,
+                arguments = listOf(navArgument("listId") { type = NavType.LongType })
+            ) { backStack ->
+                val listId = backStack.arguments!!.getLong("listId")
+                ListDetailScreen(
+                    viewModel = viewModel(
+                        factory = ListDetailViewModel.Factory(app, app.taskRepository, app.notificationRepository, listId)
+                    ),
+                    onBack = { navController.popBackStack() },
+                    onOpenNotificationSettings = {
+                        navController.navigate(Screen.NotificationSettings.createRoute(listId))
+                    }
+                )
+            }
+
+            composable(
+                route = Screen.NotificationSettings.route,
+                arguments = listOf(navArgument("listId") { type = NavType.LongType })
+            ) { backStack ->
+                val listId = backStack.arguments!!.getLong("listId")
+                val ctx = LocalContext.current
+                NotificationSettingsScreen(
+                    viewModel = viewModel(
+                        factory = NotificationSettingsViewModel.Factory(
+                            app.notificationRepository,
+                            app.taskRepository,
+                            AlarmScheduler(ctx),
+                            listId
+                        )
+                    ),
+                    onBack = { navController.popBackStack() }
+                )
+            }
         }
     }
 
