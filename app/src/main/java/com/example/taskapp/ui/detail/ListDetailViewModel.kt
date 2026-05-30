@@ -64,22 +64,30 @@ class ListDetailViewModel(
                 repo.getItemsForList(listId),
                 notifRepo.getSettingForList(listId)
             ) { list, items, setting ->
-                _uiState.value.copy(
-                    taskList = list,
-                    items = items,
-                    notificationDescription = formatNotificationSchedule(setting),
-                    canUndo = undoStack.isNotEmpty(),
-                    canRedo = redoStack.isNotEmpty()
-                )
-            }.collect { state ->
-                _uiState.value = state
+                DataSnapshot(list, items, setting)
+            }.collect { snapshot ->
+                _uiState.update { 
+                    it.copy(
+                        taskList = snapshot.list,
+                        items = snapshot.items,
+                        notificationDescription = formatNotificationSchedule(snapshot.setting),
+                        canUndo = undoStack.isNotEmpty(),
+                        canRedo = redoStack.isNotEmpty()
+                    )
+                }
                 // Refresh any active notification for this list whenever data changes
-                if (state.taskList != null) {
-                    NotificationHelper.updateIfActive(app, state.taskList, state.items)
+                if (snapshot.list != null) {
+                    NotificationHelper.updateIfActive(app, snapshot.list, snapshot.items)
                 }
             }
         }
     }
+
+    private data class DataSnapshot(
+        val list: TaskList?,
+        val items: List<TaskItem>,
+        val setting: NotificationSetting?
+    )
 
     private fun formatNotificationSchedule(setting: NotificationSetting?): String? {
         if (setting == null || !setting.isEnabled) return null

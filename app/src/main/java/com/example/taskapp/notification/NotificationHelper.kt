@@ -70,7 +70,7 @@ object NotificationHelper {
     // Posting with the same ID silently updates the existing notification.
     fun updateIfActive(context: Context, list: TaskList, items: List<TaskItem>) {
         try {
-            val manager = NotificationManagerCompat.from(context)
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             val isActive = manager.activeNotifications.any { it.id == list.id.toInt() }
             if (isActive) showNotification(context, list, items)
         } catch (e: Exception) {
