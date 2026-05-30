@@ -21,8 +21,9 @@ data class TaskItemEntity(
     val listId: Long,
     val text: String,
     val isChecked: Boolean = false,
-    val position: Int = 0
+    val position: Int = 0,
+    val indentLevel: Int = 0
 )
 
-fun TaskItemEntity.toDomain() = TaskItem(id, listId, text, isChecked, position)
-fun TaskItem.toEntity() = TaskItemEntity(id, listId, text, isChecked, position)
+fun TaskItemEntity.toDomain() = TaskItem(id, listId, text, isChecked, position, indentLevel)
+fun TaskItem.toEntity() = TaskItemEntity(id, listId, text, isChecked, position, indentLevel)

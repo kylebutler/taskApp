@@ -248,6 +248,23 @@ class ListDetailViewModel(
         viewModelScope.launch { repo.deleteItem(item) }
     }
 
+    fun changeItemIndent(item: TaskItem, delta: Int) {
+        val currentItems = _uiState.value.items
+        val index = currentItems.indexOfFirst { it.id == item.id }
+        if (index == -1) return
+
+        val newIndent = (item.indentLevel + delta).coerceIn(0, 4)
+        if (newIndent == item.indentLevel) return
+
+        // Optional: Check if it can be indented (must have a task above it to be a subtask)
+        if (delta > 0 && index == 0) return 
+
+        saveHistory()
+        viewModelScope.launch {
+            repo.updateItem(item.copy(indentLevel = newIndent))
+        }
+    }
+
     fun reorderItems(reorderedItems: List<TaskItem>) {
         if (reorderedItems == _uiState.value.items) return
         saveHistory()

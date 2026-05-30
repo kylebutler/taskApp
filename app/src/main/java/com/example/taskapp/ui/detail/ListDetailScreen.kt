@@ -3,6 +3,7 @@ package com.example.taskapp.ui.detail
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -52,6 +53,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -404,6 +406,7 @@ fun ListDetailScreen(
                             },
                             onTextChange = { viewModel.updateItemText(item, it) },
                             onDelete = { viewModel.deleteItem(item) },
+                            onIndentChanged = { delta -> viewModel.changeItemIndent(item, delta) },
                             onDragStart = {
                                 if (!isLocked) {
                                     isDragging = true
@@ -464,6 +467,7 @@ fun ListDetailScreen(
                                 },
                                 onTextChange = { viewModel.updateItemText(item, it) },
                                 onDelete = { viewModel.deleteItem(item) },
+                                onIndentChanged = { delta -> viewModel.changeItemIndent(item, delta) },
                                 onDragStart = {
                                     if (!isLocked) {
                                         isDragging = true
@@ -511,6 +515,7 @@ private fun DraggableTaskRow(
     onCheckedChange: () -> Unit,
     onTextChange: (String) -> Unit,
     onDelete: () -> Unit,
+    onIndentChanged: (Int) -> Unit,
     onDragStart: () -> Unit,
     onDrag: (Float) -> Unit,
     onDragEnd: () -> Unit
@@ -522,6 +527,10 @@ private fun DraggableTaskRow(
     val currentOnDragStart by rememberUpdatedState(onDragStart)
     val currentOnDrag by rememberUpdatedState(onDrag)
     val currentOnDragEnd by rememberUpdatedState(onDragEnd)
+    val currentOnIndentChanged by rememberUpdatedState(onIndentChanged)
+
+    var horizontalDragOffset by remember { mutableFloatStateOf(0f) }
+    val indentStepPx = 40f // threshold to trigger indent/outdent
 
     // Force clear focus if this item becomes checked
     LaunchedEffect(item.isChecked) {
@@ -538,7 +547,29 @@ private fun DraggableTaskRow(
             .graphicsLayer { translationY = if (isDragged) dragOffsetY else 0f }
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            modifier = Modifier
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+                .padding(start = (item.indentLevel * 24).dp)
+                .pointerInput(item.id) {
+                    if (!isLocked) {
+                        detectHorizontalDragGestures(
+                            onDragStart = { horizontalDragOffset = 0f },
+                            onHorizontalDrag = { change, dragAmount ->
+                                change.consume()
+                                horizontalDragOffset += dragAmount
+                                if (horizontalDragOffset > indentStepPx) {
+                                    currentOnIndentChanged(1)
+                                    horizontalDragOffset = 0f
+                                } else if (horizontalDragOffset < -indentStepPx) {
+                                    currentOnIndentChanged(-1)
+                                    horizontalDragOffset = 0f
+                                }
+                            },
+                            onDragEnd = { horizontalDragOffset = 0f },
+                            onDragCancel = { horizontalDragOffset = 0f }
+                        )
+                    }
+                },
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (!isLocked) {
