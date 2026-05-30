@@ -139,6 +139,7 @@ fun NotificationSettingsScreen(
                         ListItem(
                             headlineContent = {
                                 Text(when (freq) {
+                                    NotificationFrequency.INSTANT -> "Instant"
                                     NotificationFrequency.DAILY -> "Daily"
                                     NotificationFrequency.WEEKLY -> "Weekly"
                                     NotificationFrequency.ONE_TIME -> "One-time"

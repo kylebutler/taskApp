@@ -1,6 +1,6 @@
 package com.example.taskapp.domain.model
 
-enum class NotificationFrequency { DAILY, WEEKLY, ONE_TIME, CUSTOM_INTERVAL }
+enum class NotificationFrequency { INSTANT, DAILY, WEEKLY, ONE_TIME, CUSTOM_INTERVAL }
 enum class IntervalUnit { HOURS, DAYS, WEEKS }
 
 data class NotificationSetting(

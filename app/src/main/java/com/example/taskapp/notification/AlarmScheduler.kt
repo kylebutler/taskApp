@@ -16,11 +16,20 @@ class AlarmScheduler(private val context: Context) {
 
     fun schedule(setting: NotificationSetting) {
         when (setting.frequency) {
+            NotificationFrequency.INSTANT -> triggerInstant(setting.listId)
             NotificationFrequency.DAILY -> scheduleDailyAlarm(setting)
             NotificationFrequency.WEEKLY -> scheduleWeeklyAlarms(setting)
             NotificationFrequency.ONE_TIME -> scheduleOneTimeAlarm(setting)
             NotificationFrequency.CUSTOM_INTERVAL -> scheduleCustomIntervalAlarm(setting)
         }
+    }
+
+    private fun triggerInstant(listId: Long) {
+        val intent = Intent(context, NotificationReceiver::class.java).apply {
+            putExtra(NotificationReceiver.EXTRA_LIST_ID, listId)
+            action = "com.example.taskapp.NOTIFY_INSTANT_$listId"
+        }
+        context.sendBroadcast(intent)
     }
 
     private fun setAlarm(triggerAtMillis: Long, pendingIntent: PendingIntent) {

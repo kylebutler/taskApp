@@ -59,7 +59,7 @@ class NotificationReceiver : BroadcastReceiver() {
                         scheduler.scheduleNextCustomInterval(
                             setting.listId, setting.intervalValue, setting.intervalUnit
                         )
-                    NotificationFrequency.ONE_TIME -> { /* no reschedule */ }
+                    NotificationFrequency.ONE_TIME, NotificationFrequency.INSTANT -> { /* no reschedule */ }
                 }
             } finally {
                 pendingResult.finish()

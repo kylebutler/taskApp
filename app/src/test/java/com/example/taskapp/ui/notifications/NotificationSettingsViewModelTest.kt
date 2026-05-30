@@ -3,6 +3,7 @@ package com.example.taskapp.ui.notifications
 import app.cash.turbine.test
 import com.example.taskapp.data.repository.NotificationRepository
 import com.example.taskapp.data.repository.TaskRepository
+import com.example.taskapp.domain.model.NotificationFrequency
 import com.example.taskapp.domain.model.NotificationSetting
 import com.example.taskapp.notification.AlarmScheduler
 import io.mockk.coVerify
@@ -76,6 +77,20 @@ class NotificationSettingsViewModelTest {
         coVerify { notifRepo.saveSetting(match { !it.isEnabled }) }
         coVerify { alarmScheduler.cancel(listId) }
         coVerify(exactly = 0) { alarmScheduler.schedule(any()) }
+    }
+
+    @Test
+    fun `saveSetting with INSTANT frequency should trigger alarm immediately`() = runTest {
+        testDispatcher.scheduler.advanceUntilIdle()
+        
+        viewModel.onFrequencyChanged(NotificationFrequency.INSTANT)
+        viewModel.onEnabledChanged(true)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.saveSetting()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { alarmScheduler.schedule(match { it.frequency == NotificationFrequency.INSTANT }) }
     }
 
     @Test
