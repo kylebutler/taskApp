@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.taskapp.domain.model.ListType
 import com.example.taskapp.domain.model.TaskList
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -136,21 +137,28 @@ private fun TrashListCard(
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f)
             )
-            Row {
-                IconButton(onClick = onRestore) {
-                    Icon(
-                        imageVector = Icons.Default.RestoreFromTrash,
-                        contentDescription = "Restore",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Row {
+                    IconButton(onClick = onRestore) {
+                        Icon(
+                            imageVector = Icons.Default.RestoreFromTrash,
+                            contentDescription = "Restore",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    IconButton(onClick = onDeleteForever) {
+                        Icon(
+                            imageVector = Icons.Default.DeleteForever,
+                            contentDescription = "Delete permanently",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
-                IconButton(onClick = onDeleteForever) {
-                    Icon(
-                        imageVector = Icons.Default.DeleteForever,
-                        contentDescription = "Delete permanently",
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                }
+                Text(
+                    text = if (list.type == ListType.TASK) "Task" else "List",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.secondary
+                )
             }
         }
     }

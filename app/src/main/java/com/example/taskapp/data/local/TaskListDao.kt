@@ -10,8 +10,11 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface TaskListDao {
-    @Query("SELECT * FROM task_lists WHERE isDeleted = 0 AND isArchived = 0 ORDER BY position ASC, createdAt DESC")
+    @Query("SELECT * FROM task_lists WHERE isDeleted = 0 AND isArchived = 0 AND type != 'TASK' ORDER BY position ASC, createdAt DESC")
     fun getAllLists(): Flow<List<TaskListEntity>>
+
+    @Query("SELECT * FROM task_lists WHERE isDeleted = 0 AND isArchived = 0 AND type = 'TASK' ORDER BY isChecked ASC, position ASC, createdAt ASC")
+    fun getStandaloneTasks(): Flow<List<TaskListEntity>>
 
     @Query("SELECT * FROM task_lists WHERE isDeleted = 1 ORDER BY deletedAt DESC")
     fun getTrashLists(): Flow<List<TaskListEntity>>

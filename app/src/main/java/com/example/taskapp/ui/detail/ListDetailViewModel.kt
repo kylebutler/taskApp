@@ -102,7 +102,7 @@ class ListDetailViewModel(
         }
 
         return when (setting.frequency) {
-            NotificationFrequency.INSTANT -> "Instant (fired on save)"
+            NotificationFrequency.INSTANT -> "Instant"
             NotificationFrequency.DAILY -> "Daily at $timeStr"
             NotificationFrequency.WEEKLY -> {
                 val days = listOf("Su", "Mo", "Tu", "We", "Th", "Fr", "Sa")

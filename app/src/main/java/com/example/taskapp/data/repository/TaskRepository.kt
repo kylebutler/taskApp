@@ -26,6 +26,15 @@ class TaskRepository(private val db: TaskAppDatabase) {
     fun getTrashLists(): Flow<List<TaskList>> =
         db.taskListDao().getTrashLists().map { it.map { e -> e.toDomain() } }
 
+    fun getStandaloneTasks(): Flow<List<TaskList>> =
+        combine(
+            db.taskListDao().getStandaloneTasks(),
+            db.notificationSettingDao().getAllEnabledSettingsFlow()
+        ) { lists, enabledSettings ->
+            val enabledListIds = enabledSettings.map { it.listId }.toSet()
+            lists.map { it.toDomain(isNotificationEnabled = enabledListIds.contains(it.id)) }
+        }
+
     fun getArchivedLists(): Flow<List<TaskList>> =
         combine(
             db.taskListDao().getArchivedLists(),

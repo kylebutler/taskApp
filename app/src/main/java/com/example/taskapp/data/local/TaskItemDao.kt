@@ -13,6 +13,14 @@ interface TaskItemDao {
     @Query("SELECT * FROM task_items WHERE listId = :listId ORDER BY position ASC")
     fun getItemsForList(listId: Long): Flow<List<TaskItemEntity>>
 
+    @Query("""
+        SELECT task_items.* FROM task_items 
+        INNER JOIN task_lists ON task_items.listId = task_lists.id 
+        WHERE task_lists.isDeleted = 0 AND task_lists.isArchived = 0 
+        ORDER BY task_items.isChecked ASC, task_lists.position ASC, task_items.position ASC
+    """)
+    fun getAllActiveItems(): Flow<List<TaskItemEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertItem(item: TaskItemEntity): Long
 

@@ -43,10 +43,14 @@ import com.example.taskapp.ui.notifications.NotificationSettingsViewModel
 import com.example.taskapp.ui.settings.SettingsScreen
 import com.example.taskapp.ui.trash.TrashScreen
 import com.example.taskapp.ui.trash.TrashViewModel
+import androidx.compose.material.icons.filled.Checklist
+import com.example.taskapp.ui.tasks.MyTasksScreen
+import com.example.taskapp.ui.tasks.MyTasksViewModel
 import kotlinx.coroutines.launch
 
 sealed class Screen(val route: String) {
     data object Home : Screen("home")
+    data object MyTasks : Screen("my_tasks")
     data object Trash : Screen("trash")
     data object Archive : Screen("archive")
     data object Settings : Screen("settings")
@@ -73,7 +77,7 @@ fun AppNavigation(
 
     ModalNavigationDrawer(
         drawerState = drawerState,
-        gesturesEnabled = currentRoute in listOf(Screen.Home.route, Screen.Archive.route, Screen.Trash.route, Screen.Settings.route),
+        gesturesEnabled = currentRoute in listOf(Screen.Home.route, Screen.MyTasks.route, Screen.Archive.route, Screen.Trash.route, Screen.Settings.route),
         drawerContent = {
             ModalDrawerSheet {
                 Text(
@@ -93,6 +97,22 @@ fun AppNavigation(
                         }
                     },
                     icon = { Icon(Icons.Default.Menu, null) },
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+                NavigationDrawerItem(
+                    label = { Text("My Tasks") },
+                    selected = currentRoute == Screen.MyTasks.route,
+                    onClick = {
+                        scope.launch {
+                            drawerState.close()
+                            if (currentRoute != Screen.MyTasks.route) {
+                                navController.navigate(Screen.MyTasks.route) {
+                                    popUpTo(Screen.Home.route)
+                                }
+                            }
+                        }
+                    },
+                    icon = { Icon(Icons.Default.Checklist, null) },
                     modifier = Modifier.padding(horizontal = 12.dp)
                 )
                 NavigationDrawerItem(
@@ -154,6 +174,14 @@ fun AppNavigation(
                     viewModel = viewModel(factory = HomeViewModel.Factory(app.taskRepository)),
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onListClick = { listId -> navController.navigate(Screen.ListDetail.createRoute(listId)) }
+                )
+            }
+
+            composable(Screen.MyTasks.route) {
+                MyTasksScreen(
+                    viewModel = viewModel(factory = MyTasksViewModel.Factory(app.taskRepository)),
+                    onOpenDrawer = { scope.launch { drawerState.open() } },
+                    onTaskClick = { taskId -> navController.navigate(Screen.NotificationSettings.createRoute(taskId)) }
                 )
             }
 

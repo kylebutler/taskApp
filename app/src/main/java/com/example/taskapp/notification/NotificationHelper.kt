@@ -10,6 +10,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.example.taskapp.MainActivity
 import com.example.taskapp.R
+import com.example.taskapp.domain.model.ListType
 import com.example.taskapp.domain.model.TaskItem
 import com.example.taskapp.domain.model.TaskList
 
@@ -32,14 +33,31 @@ object NotificationHelper {
     fun showNotification(context: Context, list: TaskList, items: List<TaskItem>) {
         val notificationId = list.id.toInt()
 
-        val bodyText = items.joinToString("\n") { item ->
-            val prefix = if (item.isChecked) "\u2611" else "\u2610"
-            "$prefix ${item.text}"
-        }.ifEmpty { "No tasks" }
+        val isStandaloneTask = list.type == ListType.TASK
 
-        val style = NotificationCompat.BigTextStyle()
-            .bigText(bodyText)
-            .setBigContentTitle(list.title)
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(list.title)
+            .setAutoCancel(false)
+
+        if (isStandaloneTask) {
+            builder.setContentText("Reminder")
+        } else {
+            val bodyText = items.joinToString("\n") { item ->
+                val prefix = if (item.isChecked) "\u2611" else "\u2610"
+                "$prefix ${item.text}"
+            }.ifEmpty { "No tasks" }
+
+            val style = NotificationCompat.BigTextStyle()
+                .bigText(bodyText)
+                .setBigContentTitle(list.title)
+
+            val summary = if (items.isEmpty()) "No tasks"
+            else "${items.count { it.isChecked }}/${items.size} completed"
+
+            builder.setContentText(summary)
+            builder.setStyle(style)
+        }
 
         val tapIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -50,20 +68,9 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val summary = if (items.isEmpty()) "No tasks"
-        else "${items.count { it.isChecked }}/${items.size} completed"
+        builder.setContentIntent(tapPendingIntent)
 
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(list.title)
-            .setContentText(summary)
-            .setStyle(style)
-            .setContentIntent(tapPendingIntent)
-            // Keep showing after tap so it reflects edits made in the app
-            .setAutoCancel(false)
-            .build()
-
-        NotificationManagerCompat.from(context).notify(notificationId, notification)
+        NotificationManagerCompat.from(context).notify(notificationId, builder.build())
     }
 
     // Re-post the notification in place if one for this list is already in the shade.
