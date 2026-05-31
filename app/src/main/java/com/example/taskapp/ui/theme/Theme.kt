@@ -10,11 +10,19 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
+import com.example.taskapp.data.repository.settings.ThemePreference
+
 @Composable
 fun TaskAppTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    themePreference: ThemePreference = ThemePreference.OS,
     content: @Composable () -> Unit
 ) {
+    val darkTheme = when (themePreference) {
+        ThemePreference.LIGHT -> false
+        ThemePreference.DARK -> true
+        ThemePreference.OS -> isSystemInDarkTheme()
+    }
+
     val colorScheme = when {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current

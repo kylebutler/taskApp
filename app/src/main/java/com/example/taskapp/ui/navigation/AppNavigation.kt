@@ -40,6 +40,7 @@ import com.example.taskapp.ui.home.HomeScreen
 import com.example.taskapp.ui.home.HomeViewModel
 import com.example.taskapp.ui.notifications.NotificationSettingsScreen
 import com.example.taskapp.ui.notifications.NotificationSettingsViewModel
+import com.example.taskapp.ui.settings.SettingsViewModel
 import com.example.taskapp.ui.settings.SettingsScreen
 import com.example.taskapp.ui.trash.TrashScreen
 import com.example.taskapp.ui.trash.TrashViewModel
@@ -201,7 +202,10 @@ fun AppNavigation(
             }
 
             composable(Screen.Settings.route) {
-                SettingsScreen(onOpenDrawer = { scope.launch { drawerState.open() } })
+                SettingsScreen(
+                    viewModel = viewModel(factory = SettingsViewModel.Factory(app.userPreferencesRepository)),
+                    onOpenDrawer = { scope.launch { drawerState.open() } }
+                )
             }
 
             composable(
