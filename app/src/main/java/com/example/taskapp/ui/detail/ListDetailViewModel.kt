@@ -12,6 +12,7 @@ import com.example.taskapp.domain.model.NotificationFrequency
 import com.example.taskapp.domain.model.NotificationSetting
 import com.example.taskapp.domain.model.TaskItem
 import com.example.taskapp.domain.model.TaskList
+import com.example.taskapp.notification.AlarmScheduler
 import com.example.taskapp.notification.NotificationHelper
 import com.example.taskapp.util.ViewModelFactory
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,6 +46,7 @@ class ListDetailViewModel(
     application: Application,
     private val repo: TaskRepository,
     private val notifRepo: NotificationRepository,
+    private val alarmScheduler: AlarmScheduler,
     private val listId: Long
 ) : AndroidViewModel(application) {
 
@@ -199,6 +201,7 @@ class ListDetailViewModel(
         val list = _uiState.value.taskList ?: return
         viewModelScope.launch {
             repo.moveToTrash(list)
+            alarmScheduler.cancel(listId)
         }
     }
 
@@ -281,7 +284,7 @@ class ListDetailViewModel(
     }
 
     companion object {
-        fun Factory(app: Application, repo: TaskRepository, notifRepo: NotificationRepository, listId: Long): ViewModelProvider.Factory =
-            ViewModelFactory { ListDetailViewModel(app, repo, notifRepo, listId) }
+        fun Factory(app: TaskApp, repo: TaskRepository, notifRepo: NotificationRepository, alarmScheduler: AlarmScheduler, listId: Long): ViewModelProvider.Factory =
+            ViewModelFactory { ListDetailViewModel(app, repo, notifRepo, alarmScheduler, listId) }
     }
 }

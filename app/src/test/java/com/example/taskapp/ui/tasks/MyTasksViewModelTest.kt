@@ -4,6 +4,7 @@ import app.cash.turbine.test
 import com.example.taskapp.data.repository.TaskRepository
 import com.example.taskapp.domain.model.ListType
 import com.example.taskapp.domain.model.TaskList
+import com.example.taskapp.notification.AlarmScheduler
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -23,6 +24,7 @@ import org.junit.Test
 class MyTasksViewModelTest {
 
     private val repo = mockk<TaskRepository>(relaxed = true)
+    private val alarmScheduler = mockk<AlarmScheduler>(relaxed = true)
     private lateinit var viewModel: MyTasksViewModel
     private val testDispatcher = StandardTestDispatcher()
 
@@ -30,7 +32,7 @@ class MyTasksViewModelTest {
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         every { repo.getStandaloneTasks() } returns flowOf(emptyList())
-        viewModel = MyTasksViewModel(repo)
+        viewModel = MyTasksViewModel(repo, alarmScheduler)
     }
 
     @After
@@ -46,7 +48,7 @@ class MyTasksViewModelTest {
         )
         every { repo.getStandaloneTasks() } returns flowOf(tasks)
         
-        viewModel = MyTasksViewModel(repo)
+        viewModel = MyTasksViewModel(repo, alarmScheduler)
 
         viewModel.tasks.test {
             assertEquals(emptyList<TaskList>(), awaitItem())
@@ -83,13 +85,14 @@ class MyTasksViewModelTest {
     }
 
     @Test
-    fun `deleteTask should move task to trash`() = runTest {
+    fun `deleteTask should move task to trash and cancel alarm`() = runTest {
         val task = TaskList(id = 1, title = "To Delete")
         
         viewModel.deleteTask(task)
         testDispatcher.scheduler.advanceUntilIdle()
 
         coVerify { repo.moveToTrash(match { it.id == 1L }) }
+        coVerify { alarmScheduler.cancel(1L) }
     }
 
     @Test

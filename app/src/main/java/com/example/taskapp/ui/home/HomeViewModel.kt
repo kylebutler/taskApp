@@ -6,13 +6,17 @@ import androidx.lifecycle.viewModelScope
 import com.example.taskapp.data.repository.TaskRepository
 import com.example.taskapp.domain.model.ListType
 import com.example.taskapp.domain.model.TaskList
+import com.example.taskapp.notification.AlarmScheduler
 import com.example.taskapp.util.ViewModelFactory
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class HomeViewModel(private val repo: TaskRepository) : ViewModel() {
+class HomeViewModel(
+    private val repo: TaskRepository,
+    private val alarmScheduler: AlarmScheduler
+) : ViewModel() {
 
     init {
         viewModelScope.launch {
@@ -28,7 +32,10 @@ class HomeViewModel(private val repo: TaskRepository) : ViewModel() {
     }
 
     fun moveToTrash(list: TaskList) {
-        viewModelScope.launch { repo.moveToTrash(list) }
+        viewModelScope.launch { 
+            repo.moveToTrash(list)
+            alarmScheduler.cancel(list.id)
+        }
     }
 
     fun archiveList(list: TaskList) {
@@ -44,7 +51,7 @@ class HomeViewModel(private val repo: TaskRepository) : ViewModel() {
     }
 
     companion object {
-        fun Factory(repo: TaskRepository): ViewModelProvider.Factory =
-            ViewModelFactory { HomeViewModel(repo) }
+        fun Factory(repo: TaskRepository, alarmScheduler: AlarmScheduler): ViewModelProvider.Factory =
+            ViewModelFactory { HomeViewModel(repo, alarmScheduler) }
     }
 }

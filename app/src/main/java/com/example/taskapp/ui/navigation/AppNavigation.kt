@@ -172,7 +172,7 @@ fun AppNavigation(
 
             composable(Screen.Home.route) {
                 HomeScreen(
-                    viewModel = viewModel(factory = HomeViewModel.Factory(app.taskRepository)),
+                    viewModel = viewModel(factory = HomeViewModel.Factory(app.taskRepository, AlarmScheduler(context))),
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onListClick = { listId -> navController.navigate(Screen.ListDetail.createRoute(listId)) }
                 )
@@ -180,7 +180,7 @@ fun AppNavigation(
 
             composable(Screen.MyTasks.route) {
                 MyTasksScreen(
-                    viewModel = viewModel(factory = MyTasksViewModel.Factory(app.taskRepository)),
+                    viewModel = viewModel(factory = MyTasksViewModel.Factory(app.taskRepository, AlarmScheduler(context))),
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onTaskClick = { taskId -> navController.navigate(Screen.NotificationSettings.createRoute(taskId)) }
                 )
@@ -215,7 +215,7 @@ fun AppNavigation(
                 val listId = backStack.arguments!!.getLong("listId")
                 ListDetailScreen(
                     viewModel = viewModel(
-                        factory = ListDetailViewModel.Factory(app, app.taskRepository, app.notificationRepository, listId)
+                        factory = ListDetailViewModel.Factory(app, app.taskRepository, app.notificationRepository, AlarmScheduler(context), listId)
                     ),
                     onBack = { navController.popBackStack() },
                     onOpenNotificationSettings = {

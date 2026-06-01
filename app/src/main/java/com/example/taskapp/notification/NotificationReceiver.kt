@@ -36,6 +36,8 @@ class NotificationReceiver : BroadcastReceiver() {
             try {
                 val db = TaskAppDatabase.getInstance(context)
                 val listEntity = db.taskListDao().getListById(listId).first() ?: return@launch
+                if (listEntity.isDeleted) return@launch
+
                 val items = db.taskItemDao().getItemsForList(listId).first()
                 val settingEntity = db.notificationSettingDao().getSettingForList(listId).first()
                     ?: return@launch
@@ -59,7 +61,10 @@ class NotificationReceiver : BroadcastReceiver() {
                         scheduler.scheduleNextCustomInterval(
                             setting.listId, setting.intervalValue, setting.intervalUnit
                         )
-                    NotificationFrequency.ONE_TIME, NotificationFrequency.INSTANT -> { /* no reschedule */ }
+                    NotificationFrequency.ONE_TIME, NotificationFrequency.INSTANT -> {
+                        // Mark as disabled so it doesn't refire on boot or other events
+                        db.notificationSettingDao().upsertSetting(settingEntity.copy(isEnabled = false))
+                    }
                 }
             } finally {
                 pendingResult.finish()
@@ -74,7 +79,13 @@ class NotificationReceiver : BroadcastReceiver() {
                 val db = TaskAppDatabase.getInstance(context)
                 val scheduler = AlarmScheduler(context)
                 db.notificationSettingDao().getAllEnabledSettings().forEach { entity ->
-                    scheduler.schedule(entity.toDomain())
+                    val list = db.taskListDao().getListById(entity.listId).first()
+                    if (list != null && !list.isDeleted) {
+                        val domain = entity.toDomain()
+                        if (domain.frequency != NotificationFrequency.INSTANT) {
+                            scheduler.schedule(domain)
+                        }
+                    }
                 }
             } finally {
                 pendingResult.finish()

@@ -6,13 +6,17 @@ import androidx.lifecycle.viewModelScope
 import com.example.taskapp.data.repository.TaskRepository
 import com.example.taskapp.domain.model.ListType
 import com.example.taskapp.domain.model.TaskList
+import com.example.taskapp.notification.AlarmScheduler
 import com.example.taskapp.util.ViewModelFactory
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class MyTasksViewModel(private val repo: TaskRepository) : ViewModel() {
+class MyTasksViewModel(
+    private val repo: TaskRepository,
+    private val alarmScheduler: AlarmScheduler
+) : ViewModel() {
 
     val tasks: StateFlow<List<TaskList>> = repo.getStandaloneTasks()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -38,6 +42,7 @@ class MyTasksViewModel(private val repo: TaskRepository) : ViewModel() {
     fun deleteTask(task: TaskList) {
         viewModelScope.launch {
             repo.moveToTrash(task)
+            alarmScheduler.cancel(task.id)
         }
     }
 
@@ -48,7 +53,7 @@ class MyTasksViewModel(private val repo: TaskRepository) : ViewModel() {
     }
 
     companion object {
-        fun Factory(repo: TaskRepository): ViewModelProvider.Factory =
-            ViewModelFactory { MyTasksViewModel(repo) }
+        fun Factory(repo: TaskRepository, alarmScheduler: AlarmScheduler): ViewModelProvider.Factory =
+            ViewModelFactory { MyTasksViewModel(repo, alarmScheduler) }
     }
 }

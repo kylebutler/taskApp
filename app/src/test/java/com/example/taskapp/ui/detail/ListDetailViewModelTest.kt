@@ -1,9 +1,11 @@
 package com.example.taskapp.ui.detail
 
 import android.app.Application
+import com.example.taskapp.TaskApp
 import com.example.taskapp.data.repository.NotificationRepository
 import com.example.taskapp.data.repository.TaskRepository
 import com.example.taskapp.domain.model.TaskItem
+import com.example.taskapp.notification.AlarmScheduler
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
@@ -21,9 +23,10 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class ListDetailViewModelTest {
 
-    private val app = mockk<Application>(relaxed = true)
+    private val app = mockk<TaskApp>(relaxed = true)
     private val repo = mockk<TaskRepository>(relaxed = true)
     private val notifRepo = mockk<NotificationRepository>(relaxed = true)
+    private val alarmScheduler = mockk<AlarmScheduler>(relaxed = true)
     private val listId = 1L
     private lateinit var viewModel: ListDetailViewModel
     private val testDispatcher = StandardTestDispatcher()
@@ -36,7 +39,7 @@ class ListDetailViewModelTest {
         every { repo.getListById(listId) } returns MutableStateFlow(null)
         every { repo.getItemsForList(listId) } returns itemsFlow
         every { notifRepo.getSettingForList(listId) } returns MutableStateFlow(null)
-        viewModel = ListDetailViewModel(app, repo, notifRepo, listId)
+        viewModel = ListDetailViewModel(app, repo, notifRepo, alarmScheduler, listId)
     }
 
     @After

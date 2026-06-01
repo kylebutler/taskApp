@@ -39,6 +39,7 @@ object NotificationHelper {
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(list.title)
             .setAutoCancel(false)
+            .setOnlyAlertOnce(true)
 
         if (isStandaloneTask) {
             builder.setContentText("Reminder")
