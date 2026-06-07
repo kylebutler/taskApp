@@ -3,7 +3,9 @@ package com.example.taskapp.ui.navigation
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
@@ -40,18 +42,20 @@ import com.example.taskapp.ui.home.HomeScreen
 import com.example.taskapp.ui.home.HomeViewModel
 import com.example.taskapp.ui.notifications.NotificationSettingsScreen
 import com.example.taskapp.ui.notifications.NotificationSettingsViewModel
-import com.example.taskapp.ui.settings.SettingsViewModel
 import com.example.taskapp.ui.settings.SettingsScreen
+import com.example.taskapp.ui.settings.SettingsViewModel
 import com.example.taskapp.ui.trash.TrashScreen
 import com.example.taskapp.ui.trash.TrashViewModel
-import androidx.compose.material.icons.filled.Checklist
 import com.example.taskapp.ui.tasks.MyTasksScreen
 import com.example.taskapp.ui.tasks.MyTasksViewModel
+import com.example.taskapp.ui.alarm.MyAlarmsScreen
+import com.example.taskapp.ui.alarm.MyAlarmsViewModel
 import kotlinx.coroutines.launch
 
 sealed class Screen(val route: String) {
     data object Home : Screen("home")
     data object MyTasks : Screen("my_tasks")
+    data object MyAlarms : Screen("my_alarms")
     data object Trash : Screen("trash")
     data object Archive : Screen("archive")
     data object Settings : Screen("settings")
@@ -78,7 +82,7 @@ fun AppNavigation(
 
     ModalNavigationDrawer(
         drawerState = drawerState,
-        gesturesEnabled = currentRoute in listOf(Screen.Home.route, Screen.MyTasks.route, Screen.Archive.route, Screen.Trash.route, Screen.Settings.route),
+        gesturesEnabled = currentRoute in listOf(Screen.Home.route, Screen.MyTasks.route, Screen.MyAlarms.route, Screen.Archive.route, Screen.Trash.route, Screen.Settings.route),
         drawerContent = {
             ModalDrawerSheet {
                 Text(
@@ -114,6 +118,22 @@ fun AppNavigation(
                         }
                     },
                     icon = { Icon(Icons.Default.Checklist, null) },
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+                NavigationDrawerItem(
+                    label = { Text("My Alarms") },
+                    selected = currentRoute == Screen.MyAlarms.route,
+                    onClick = {
+                        scope.launch {
+                            drawerState.close()
+                            if (currentRoute != Screen.MyAlarms.route) {
+                                navController.navigate(Screen.MyAlarms.route) {
+                                    popUpTo(Screen.Home.route)
+                                }
+                            }
+                        }
+                    },
+                    icon = { Icon(Icons.Default.Alarm, null) },
                     modifier = Modifier.padding(horizontal = 12.dp)
                 )
                 NavigationDrawerItem(
@@ -183,6 +203,13 @@ fun AppNavigation(
                     viewModel = viewModel(factory = MyTasksViewModel.Factory(app.taskRepository, AlarmScheduler(context))),
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onTaskClick = { taskId -> navController.navigate(Screen.NotificationSettings.createRoute(taskId)) }
+                )
+            }
+
+            composable(Screen.MyAlarms.route) {
+                MyAlarmsScreen(
+                    viewModel = viewModel(factory = MyAlarmsViewModel.Factory(app.alarmRepository, AlarmScheduler(context))),
+                    onOpenDrawer = { scope.launch { drawerState.open() } }
                 )
             }
 

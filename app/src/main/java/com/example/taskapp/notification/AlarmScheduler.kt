@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import com.example.taskapp.domain.model.Alarm
 import com.example.taskapp.domain.model.IntervalUnit
 import com.example.taskapp.domain.model.NotificationFrequency
 import com.example.taskapp.domain.model.NotificationSetting
@@ -22,6 +23,55 @@ class AlarmScheduler(private val context: Context) {
             NotificationFrequency.ONE_TIME -> scheduleOneTimeAlarm(setting)
             NotificationFrequency.CUSTOM_INTERVAL -> scheduleCustomIntervalAlarm(setting)
         }
+    }
+
+    fun scheduleClockAlarm(alarm: Alarm) {
+        if (!alarm.isEnabled) {
+            cancelClockAlarm(alarm.id)
+            return
+        }
+
+        val triggerAt = calculateNextClockAlarmTime(alarm)
+        val pendingIntent = buildClockAlarmPendingIntent(alarm.id)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && alarmManager.canScheduleExactAlarms()) {
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
+        } else {
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
+        }
+    }
+
+    fun cancelClockAlarm(alarmId: Long) {
+        alarmManager.cancel(buildClockAlarmPendingIntent(alarmId))
+    }
+
+    private fun calculateNextClockAlarmTime(alarm: Alarm): Long {
+        if (alarm.isOneTime || alarm.daysOfWeek == 0) {
+            return nextOccurrence(alarm.hour, alarm.minute, null)
+        }
+        
+        var minTime = Long.MAX_VALUE
+        for (dayIndex in 0..6) {
+            val bit = 1 shl dayIndex
+            if ((alarm.daysOfWeek and bit) != 0) {
+                val time = nextOccurrence(alarm.hour, alarm.minute, dayOfWeek = dayIndex + 1)
+                if (time < minTime) minTime = time
+            }
+        }
+        return minTime
+    }
+
+    private fun buildClockAlarmPendingIntent(alarmId: Long): PendingIntent {
+        val intent = Intent(context, ClockAlarmReceiver::class.java).apply {
+            putExtra("ALARM_ID", alarmId)
+            action = "com.example.taskapp.CLOCK_ALARM_$alarmId"
+        }
+        return PendingIntent.getBroadcast(
+            context,
+            alarmId.toInt(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
     }
 
     private fun triggerInstant(listId: Long) {

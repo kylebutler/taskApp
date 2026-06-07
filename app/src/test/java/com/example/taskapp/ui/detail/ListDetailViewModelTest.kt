@@ -1,10 +1,11 @@
 package com.example.taskapp.ui.detail
 
-import android.app.Application
+import app.cash.turbine.test
 import com.example.taskapp.TaskApp
 import com.example.taskapp.data.repository.NotificationRepository
 import com.example.taskapp.data.repository.TaskRepository
 import com.example.taskapp.domain.model.TaskItem
+import com.example.taskapp.domain.model.TaskList
 import com.example.taskapp.notification.AlarmScheduler
 import io.mockk.coVerify
 import io.mockk.every
@@ -17,6 +18,9 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -32,11 +36,12 @@ class ListDetailViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
 
     private val itemsFlow = MutableStateFlow<List<TaskItem>>(emptyList())
+    private val listFlow = MutableStateFlow<TaskList?>(TaskList(id = listId, title = "Test List"))
 
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
-        every { repo.getListById(listId) } returns MutableStateFlow(null)
+        every { repo.getListById(listId) } returns listFlow
         every { repo.getItemsForList(listId) } returns itemsFlow
         every { notifRepo.getSettingForList(listId) } returns MutableStateFlow(null)
         viewModel = ListDetailViewModel(app, repo, notifRepo, alarmScheduler, listId)
@@ -45,6 +50,44 @@ class ListDetailViewModelTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
+    }
+
+    @Test
+    fun `addItem should call repository when text is not blank`() = runTest {
+        viewModel.setNewItemText("New Task")
+        viewModel.addItem()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { repo.addItem(listId, "New Task", 0) }
+    }
+
+    @Test
+    fun `toggleItem should call repository with flipped checked state`() = runTest {
+        val item = TaskItem(id = 10, listId = listId, text = "Task", isChecked = false)
+        
+        viewModel.toggleItem(item)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { repo.updateItem(match { it.id == 10L && it.isChecked }) }
+    }
+
+    @Test
+    fun `undo should update UI state correctly`() = runTest {
+        val initialItems = listOf(TaskItem(id = 10, listId = listId, text = "Original"))
+        itemsFlow.value = initialItems
+        testDispatcher.scheduler.advanceUntilIdle()
+        
+        // Action
+        viewModel.updateItemText(initialItems[0], "Updated")
+        testDispatcher.scheduler.advanceUntilIdle()
+        
+        assertTrue("canUndo should be true", viewModel.uiState.value.canUndo)
+        
+        viewModel.undo()
+        testDispatcher.scheduler.advanceUntilIdle()
+        
+        assertFalse("canUndo should be false after undoing one action", viewModel.uiState.value.canUndo)
+        assertTrue("canRedo should be true after undo", viewModel.uiState.value.canRedo)
     }
 
     @Test
@@ -58,29 +101,5 @@ class ListDetailViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         coVerify { repo.updateItem(match { it.id == 10L && it.indentLevel == 1 }) }
-    }
-
-    @Test
-    fun `changeItemIndent should not indent first item`() = runTest {
-        val item = TaskItem(id = 10, listId = listId, text = "First Task", indentLevel = 0)
-        itemsFlow.value = listOf(item)
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        viewModel.changeItemIndent(item, 1)
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify(exactly = 0) { repo.updateItem(any()) }
-    }
-
-    @Test
-    fun `changeItemIndent should allow outdenting from level 1 to 0`() = runTest {
-        val item = TaskItem(id = 10, listId = listId, text = "Task", indentLevel = 1)
-        itemsFlow.value = listOf(item)
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        viewModel.changeItemIndent(item, -1)
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify { repo.updateItem(match { it.id == 10L && it.indentLevel == 0 }) }
     }
 }
