@@ -1,31 +1,20 @@
 package com.example.taskapp.ui.settings
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import android.app.Activity
+import android.content.Intent
+import android.media.RingtoneManager
+import android.net.Uri
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.taskapp.data.repository.settings.ThemePreference
@@ -37,7 +26,26 @@ fun SettingsScreen(
     onOpenDrawer: () -> Unit
 ) {
     val themePreference by viewModel.themePreference.collectAsStateWithLifecycle()
-    var expanded by remember { mutableStateOf(false) }
+    val snoozeDuration by viewModel.snoozeDuration.collectAsStateWithLifecycle()
+    val ringtoneUri by viewModel.alarmRingtoneUri.collectAsStateWithLifecycle()
+    
+    var themeExpanded by remember { mutableStateOf(false) }
+    var snoozeExpanded by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val ringtoneLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                result.data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI, Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                result.data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+            }
+            uri?.let { viewModel.setAlarmRingtoneUri(it.toString()) }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -64,8 +72,8 @@ fun SettingsScreen(
             )
 
             ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = !expanded },
+                expanded = themeExpanded,
+                onExpandedChange = { themeExpanded = !themeExpanded },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 OutlinedTextField(
@@ -77,7 +85,7 @@ fun SettingsScreen(
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Theme") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = themeExpanded) },
                     colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                     modifier = Modifier
                         .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true)
@@ -85,8 +93,8 @@ fun SettingsScreen(
                 )
 
                 ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
+                    expanded = themeExpanded,
+                    onDismissRequest = { themeExpanded = false }
                 ) {
                     ThemePreference.entries.forEach { preference ->
                         DropdownMenuItem(
@@ -101,12 +109,75 @@ fun SettingsScreen(
                             },
                             onClick = {
                                 viewModel.setThemePreference(preference)
-                                expanded = false
+                                themeExpanded = false
                             }
                         )
                     }
                 }
             }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 24.dp))
+
+            Text(
+                "Alarms",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            ExposedDropdownMenuBox(
+                expanded = snoozeExpanded,
+                onExpandedChange = { snoozeExpanded = !snoozeExpanded },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedTextField(
+                    value = "$snoozeDuration minutes",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Snooze duration") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = snoozeExpanded) },
+                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                    modifier = Modifier
+                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true)
+                        .fillMaxWidth()
+                )
+
+                ExposedDropdownMenu(
+                    expanded = snoozeExpanded,
+                    onDismissRequest = { snoozeExpanded = false }
+                ) {
+                    listOf(5, 10, 15, 30).forEach { minutes ->
+                        DropdownMenuItem(
+                            text = { Text("$minutes minutes") },
+                            onClick = {
+                                viewModel.setSnoozeDuration(minutes)
+                                snoozeExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            ListItem(
+                headlineContent = { Text("Ringtone") },
+                supportingContent = {
+                    val name = ringtoneUri?.let {
+                        RingtoneManager.getRingtone(context, Uri.parse(it))?.getTitle(context)
+                    } ?: "Default"
+                    Text(name)
+                },
+                modifier = Modifier.clickable {
+                    val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Select Alarm Ringtone")
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, ringtoneUri?.let { Uri.parse(it) })
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                    }
+                    ringtoneLauncher.launch(intent)
+                }
+            )
         }
     }
 }

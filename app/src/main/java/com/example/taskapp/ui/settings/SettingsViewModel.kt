@@ -16,9 +16,27 @@ class SettingsViewModel(private val repository: UserPreferencesRepository) : Vie
     val themePreference: StateFlow<ThemePreference> = repository.themePreference
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ThemePreference.OS)
 
+    val snoozeDuration: StateFlow<Int> = repository.snoozeDuration
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 5)
+
+    val alarmRingtoneUri: StateFlow<String?> = repository.alarmRingtoneUri
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     fun setThemePreference(themePreference: ThemePreference) {
         viewModelScope.launch {
             repository.setThemePreference(themePreference)
+        }
+    }
+
+    fun setSnoozeDuration(minutes: Int) {
+        viewModelScope.launch {
+            repository.setSnoozeDuration(minutes)
+        }
+    }
+
+    fun setAlarmRingtoneUri(uri: String) {
+        viewModelScope.launch {
+            repository.setAlarmRingtoneUri(uri)
         }
     }
 

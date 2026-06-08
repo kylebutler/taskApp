@@ -5,6 +5,8 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -17,22 +19,40 @@ import com.example.taskapp.domain.model.TaskList
 object NotificationHelper {
 
     const val CHANNEL_ID = "task_list_notifications"
+    const val ALARM_CHANNEL_ID = "alarm_notifications"
 
     fun createNotificationChannel(context: Context) {
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return
+        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
+            val taskChannel = NotificationChannel(
                 CHANNEL_ID,
                 "Task List Reminders",
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply { description = "Scheduled reminders for your task lists" }
-            context.getSystemService(NotificationManager::class.java)
-                ?.createNotificationChannel(channel)
+            manager.createNotificationChannel(taskChannel)
+
+            val alarmChannel = NotificationChannel(
+                ALARM_CHANNEL_ID,
+                "Alarms",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Clock Alarms"
+                enableVibration(true)
+                setBypassDnd(true)
+                lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+                val audioAttributes = AudioAttributes.Builder()
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .build()
+                setSound(null, audioAttributes) // Sound will be set per-notification for flexibility
+            }
+            manager.createNotificationChannel(alarmChannel)
         }
     }
 
     fun showNotification(context: Context, list: TaskList, items: List<TaskItem>) {
         val notificationId = list.id.toInt()
-
         val isStandaloneTask = list.type == ListType.TASK
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
@@ -70,19 +90,74 @@ object NotificationHelper {
         )
 
         builder.setContentIntent(tapPendingIntent)
-
         NotificationManagerCompat.from(context).notify(notificationId, builder.build())
     }
 
-    // Re-post the notification in place if one for this list is already in the shade.
-    // Posting with the same ID silently updates the existing notification.
+    fun buildClockAlarmNotification(context: Context, alarmId: Long, label: String): androidx.core.app.NotificationCompat.Builder {
+        val stopIntent = Intent(context, ClockAlarmReceiver::class.java).apply {
+            action = "STOP_ALARM"
+            putExtra("ALARM_ID", alarmId)
+        }
+        val stopPendingIntent = PendingIntent.getBroadcast(
+            context, (alarmId + 1000).toInt(), stopIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val snoozeIntent = Intent(context, ClockAlarmReceiver::class.java).apply {
+            action = "SNOOZE_ALARM"
+            putExtra("ALARM_ID", alarmId)
+        }
+        val snoozePendingIntent = PendingIntent.getBroadcast(
+            context, (alarmId + 2000).toInt(), snoozeIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        return NotificationCompat.Builder(context, ALARM_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("Alarm: $label")
+            .setContentText("Wake up!")
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setOngoing(true)
+            .setFullScreenIntent(null, true)
+            .addAction(R.drawable.ic_notification, "Stop", stopPendingIntent)
+            .addAction(R.drawable.ic_notification, "Snooze", snoozePendingIntent)
+    }
+
+    fun showClockAlarmNotification(context: Context, alarmId: Long, label: String, ringtoneUri: Uri?, vibrate: Boolean) {
+        val builder = buildClockAlarmNotification(context, alarmId, label)
+
+        if (vibrate) {
+            builder.setVibrate(longArrayOf(0, 500, 500, 500))
+        } else {
+            builder.setVibrate(longArrayOf(0))
+        }
+
+        if (ringtoneUri != null) {
+            builder.setSound(ringtoneUri)
+        }
+
+        val notification = builder.build()
+        notification.flags = notification.flags or NotificationCompat.FLAG_INSISTENT
+
+        NotificationManagerCompat.from(context).notify(alarmId.toInt(), notification)
+    }
+
+    fun showSnoozeNotification(context: Context, alarmId: Long, label: String, nextTriggerTime: String) {
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("Alarm snoozed")
+            .setContentText("$label will trigger at $nextTriggerTime")
+            .setAutoCancel(true)
+        
+        NotificationManagerCompat.from(context).notify((alarmId + 4000).toInt(), builder.build())
+    }
+
     fun updateIfActive(context: Context, list: TaskList, items: List<TaskItem>) {
         try {
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             val isActive = manager.activeNotifications.any { it.id == list.id.toInt() }
             if (isActive) showNotification(context, list, items)
-        } catch (e: Exception) {
-            // Some devices or API levels might fail here; ignore as it's just an update
-        }
+        } catch (e: Exception) { }
     }
 }
