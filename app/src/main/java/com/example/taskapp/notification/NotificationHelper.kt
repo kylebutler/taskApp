@@ -112,6 +112,16 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val fullScreenIntent = Intent(context, com.example.taskapp.ui.alarm.ringing.AlarmRingingActivity::class.java).apply {
+            putExtra("ALARM_ID", alarmId)
+            putExtra("ALARM_LABEL", label)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION
+        }
+        val fullScreenPendingIntent = PendingIntent.getActivity(
+            context, (alarmId + 5000).toInt(), fullScreenIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         return NotificationCompat.Builder(context, ALARM_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Alarm: $label")
@@ -119,7 +129,7 @@ object NotificationHelper {
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setOngoing(true)
-            .setFullScreenIntent(null, true)
+            .setFullScreenIntent(fullScreenPendingIntent, true)
             .addAction(R.drawable.ic_notification, "Stop", stopPendingIntent)
             .addAction(R.drawable.ic_notification, "Snooze", snoozePendingIntent)
     }

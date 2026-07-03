@@ -34,11 +34,9 @@ class AlarmScheduler(private val context: Context) {
         val triggerAt = calculateNextClockAlarmTime(alarm)
         val pendingIntent = buildClockAlarmPendingIntent(alarm.id)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && alarmManager.canScheduleExactAlarms()) {
-            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
-        } else {
-            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
-        }
+        // use setAlarmClock for True Alarms - this is the most reliable way
+        val clockInfo = AlarmManager.AlarmClockInfo(triggerAt, null)
+        alarmManager.setAlarmClock(clockInfo, pendingIntent)
     }
 
     fun cancelClockAlarm(alarmId: Long) {
@@ -83,10 +81,15 @@ class AlarmScheduler(private val context: Context) {
     }
 
     private fun setAlarm(triggerAtMillis: Long, pendingIntent: PendingIntent) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && alarmManager.canScheduleExactAlarms()) {
-            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (alarmManager.canScheduleExactAlarms()) {
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+            } else {
+                // Fallback to inexact or ask user - for this app we just use inexact but close
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+            }
         } else {
-            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
         }
     }
 

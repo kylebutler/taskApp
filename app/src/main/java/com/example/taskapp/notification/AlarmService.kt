@@ -3,10 +3,12 @@ package com.example.taskapp.notification
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
 import android.media.Ringtone
 import android.media.RingtoneManager
 import android.net.Uri
+import android.os.Build
 import android.os.IBinder
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -53,7 +55,7 @@ class AlarmService : Service() {
                 }
             }
 
-            // 2. Handle Vibration (Vibrate by default for all alarms)
+            // 2. Handle Vibration
             vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
             val pattern = longArrayOf(0, 500, 500, 500)
             vibrator?.vibrate(VibrationEffect.createWaveform(pattern, 0))
@@ -63,11 +65,11 @@ class AlarmService : Service() {
             val notification = builder.build()
             notification.flags = notification.flags or NotificationCompat.FLAG_INSISTENT
 
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
                     alarmId.toInt(), 
                     notification, 
-                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
                 )
             } else {
                 startForeground(alarmId.toInt(), notification)
