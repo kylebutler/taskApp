@@ -55,7 +55,7 @@ class AlarmService : Service() {
                 }
             }
 
-            // 2. Handle Vibration
+            // 2. Handle Vibration (Vibrate by default for all alarms)
             vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
             val pattern = longArrayOf(0, 500, 500, 500)
             vibrator?.vibrate(VibrationEffect.createWaveform(pattern, 0))

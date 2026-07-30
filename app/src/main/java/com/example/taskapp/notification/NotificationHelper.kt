@@ -93,7 +93,7 @@ object NotificationHelper {
         NotificationManagerCompat.from(context).notify(notificationId, builder.build())
     }
 
-    fun buildClockAlarmNotification(context: Context, alarmId: Long, label: String): androidx.core.app.NotificationCompat.Builder {
+    fun buildClockAlarmNotification(context: Context, alarmId: Long, label: String): NotificationCompat.Builder {
         val stopIntent = Intent(context, ClockAlarmReceiver::class.java).apply {
             action = "STOP_ALARM"
             putExtra("ALARM_ID", alarmId)

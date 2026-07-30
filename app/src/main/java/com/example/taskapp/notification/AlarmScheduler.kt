@@ -85,7 +85,6 @@ class AlarmScheduler(private val context: Context) {
             if (alarmManager.canScheduleExactAlarms()) {
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
             } else {
-                // Fallback to inexact or ask user - for this app we just use inexact but close
                 alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
             }
         } else {
@@ -155,8 +154,12 @@ class AlarmScheduler(private val context: Context) {
         val intent = Intent(context, NotificationReceiver::class.java).apply {
             putExtra(NotificationReceiver.EXTRA_LIST_ID, listId)
             putExtra(NotificationReceiver.EXTRA_DAY_INDEX, dayIndex)
-            // Unique action ensures each PendingIntent is distinct by content
-            action = "com.example.taskapp.NOTIFY_$requestCode"
+            // Use a more unique action to prevent collisions between different lists and days
+            action = if (dayIndex >= 0) {
+                "com.example.taskapp.NOTIFY_LIST_${listId}_DAY_$dayIndex"
+            } else {
+                "com.example.taskapp.NOTIFY_LIST_$listId"
+            }
         }
         return PendingIntent.getBroadcast(
             context, requestCode, intent,
