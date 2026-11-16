@@ -90,10 +90,13 @@ object NotificationHelper {
         )
 
         builder.setContentIntent(tapPendingIntent)
-        NotificationManagerCompat.from(context).notify(notificationId, builder.build())
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || 
+            androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            NotificationManagerCompat.from(context).notify(notificationId, builder.build())
+        }
     }
 
-    fun buildClockAlarmNotification(context: Context, alarmId: Long, label: String): androidx.core.app.NotificationCompat.Builder {
+    fun buildClockAlarmNotification(context: Context, alarmId: Long, label: String): NotificationCompat.Builder {
         val stopIntent = Intent(context, ClockAlarmReceiver::class.java).apply {
             action = "STOP_ALARM"
             putExtra("ALARM_ID", alarmId)
@@ -112,6 +115,16 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val fullScreenIntent = Intent(context, com.example.taskapp.ui.alarm.ringing.AlarmRingingActivity::class.java).apply {
+            putExtra("ALARM_ID", alarmId)
+            putExtra("ALARM_LABEL", label)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION
+        }
+        val fullScreenPendingIntent = PendingIntent.getActivity(
+            context, (alarmId + 5000).toInt(), fullScreenIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         return NotificationCompat.Builder(context, ALARM_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Alarm: $label")
@@ -119,7 +132,7 @@ object NotificationHelper {
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setOngoing(true)
-            .setFullScreenIntent(null, true)
+            .setFullScreenIntent(fullScreenPendingIntent, true)
             .addAction(R.drawable.ic_notification, "Stop", stopPendingIntent)
             .addAction(R.drawable.ic_notification, "Snooze", snoozePendingIntent)
     }
@@ -140,7 +153,10 @@ object NotificationHelper {
         val notification = builder.build()
         notification.flags = notification.flags or NotificationCompat.FLAG_INSISTENT
 
-        NotificationManagerCompat.from(context).notify(alarmId.toInt(), notification)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || 
+            androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            NotificationManagerCompat.from(context).notify(alarmId.toInt(), notification)
+        }
     }
 
     fun showSnoozeNotification(context: Context, alarmId: Long, label: String, nextTriggerTime: String) {
@@ -150,7 +166,10 @@ object NotificationHelper {
             .setContentText("$label will trigger at $nextTriggerTime")
             .setAutoCancel(true)
         
-        NotificationManagerCompat.from(context).notify((alarmId + 4000).toInt(), builder.build())
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || 
+            androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            NotificationManagerCompat.from(context).notify((alarmId + 4000).toInt(), builder.build())
+        }
     }
 
     fun updateIfActive(context: Context, list: TaskList, items: List<TaskItem>) {

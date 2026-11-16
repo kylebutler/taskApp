@@ -36,7 +36,7 @@ fun MyAlarmsScreen(
     val localAlarms = remember { mutableStateListOf<Alarm>() }
     var isDragging by remember { mutableStateOf(false) }
     var draggedIndex by remember { mutableStateOf<Int?>(null) }
-    var dragOffsetY by remember { mutableStateOf(0f) }
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
     val listState = rememberLazyListState()
 
     var showDialog by remember { mutableStateOf(false) }

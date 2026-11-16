@@ -177,12 +177,17 @@ class ListDetailViewModel(
     private fun applySnapshot(snapshot: ListSnapshot) {
         val list = _uiState.value.taskList ?: return
         viewModelScope.launch {
-            repo.updateList(list.copy(
+            val updatedList = list.copy(
                 title = snapshot.title,
                 colorArgb = snapshot.colorArgb,
                 textContent = snapshot.textContent
-            ))
+            )
+            repo.updateList(updatedList)
             repo.syncItems(listId, snapshot.items)
+            
+            // Refresh notification after undo/redo
+            NotificationHelper.updateIfActive(app, updatedList, snapshot.items)
+
             isUndoRedoAction = false
             updateUndoRedoStates()
         }
@@ -193,7 +198,9 @@ class ListDetailViewModel(
     fun toggleLock() {
         val list = _uiState.value.taskList ?: return
         viewModelScope.launch {
-            repo.updateList(list.copy(isLocked = !list.isLocked))
+            val updatedList = list.copy(isLocked = !list.isLocked)
+            repo.updateList(updatedList)
+            NotificationHelper.updateIfActive(app, updatedList, _uiState.value.items)
         }
     }
 
@@ -207,10 +214,16 @@ class ListDetailViewModel(
 
     fun saveTitle(newTitle: String) {
         val list = _uiState.value.taskList ?: return
-        if (list.title == newTitle.trim()) return
+        val trimmed = newTitle.trim()
+        val finalTitle = trimmed.ifEmpty { list.title }
+        if (list.title == finalTitle) return
+        
         saveHistory()
         viewModelScope.launch {
-            repo.updateList(list.copy(title = newTitle.trim().ifEmpty { list.title }))
+            val updatedList = list.copy(title = finalTitle)
+            repo.updateList(updatedList)
+            // Explicitly refresh notification for immediate feedback on title change
+            NotificationHelper.updateIfActive(app, updatedList, _uiState.value.items)
         }
         _uiState.update { it.copy(isEditingTitle = false) }
     }
@@ -220,7 +233,10 @@ class ListDetailViewModel(
         if (list.colorArgb == colorArgb) return
         saveHistory()
         viewModelScope.launch {
-            repo.updateList(list.copy(colorArgb = colorArgb))
+            val updatedList = list.copy(colorArgb = colorArgb)
+            repo.updateList(updatedList)
+            // Color change might affect notification visuals in the future
+            NotificationHelper.updateIfActive(app, updatedList, _uiState.value.items)
         }
     }
 
@@ -229,7 +245,9 @@ class ListDetailViewModel(
         if (list.textContent == text) return
         saveHistory()
         viewModelScope.launch {
-            repo.updateList(list.copy(textContent = text))
+            val updatedList = list.copy(textContent = text)
+            repo.updateList(updatedList)
+            NotificationHelper.updateIfActive(app, updatedList, _uiState.value.items)
         }
     }
 

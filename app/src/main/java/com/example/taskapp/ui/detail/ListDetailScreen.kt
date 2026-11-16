@@ -33,8 +33,12 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -71,7 +75,15 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -90,10 +102,30 @@ fun ListDetailScreen(
     val localItems = remember { mutableStateListOf<TaskItem>() }
     var isDragging by remember { mutableStateOf(false) }
     var draggedIndex by remember { mutableStateOf<Int?>(null) }
-    var dragOffsetY by remember { mutableStateOf(0f) }
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
     val listState = rememberLazyListState()
     var showColorPicker by remember { mutableStateOf(false) }
     var showTrashConfirm by remember { mutableStateOf(false) }
+    var isSearchActive by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    
+    var noteText by remember(uiState.taskList?.textContent) { 
+        mutableStateOf(uiState.taskList?.textContent ?: "") 
+    }
+
+    val textMatches = remember(noteText, searchQuery) {
+        if (searchQuery.isEmpty()) emptyList()
+        else {
+            val indices = mutableListOf<Int>()
+            var idx = noteText.indexOf(searchQuery, ignoreCase = true)
+            while (idx >= 0) {
+                indices.add(idx)
+                idx = noteText.indexOf(searchQuery, idx + searchQuery.length, ignoreCase = true)
+            }
+            indices
+        }
+    }
+    var textMatchIndex by remember(textMatches) { mutableStateOf(if (textMatches.isNotEmpty()) 0 else -1) }
 
     val presetColors = listOf(
         Color(0xFFB71C1C), // Deep Red
@@ -161,7 +193,52 @@ fun ListDetailScreen(
         contentColor = contentColor,
         topBar = {
             TopAppBar(
-                title = {},
+                title = {
+                    if (isSearchActive) {
+                        val searchFocusRequester = remember { FocusRequester() }
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            BasicTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .focusRequester(searchFocusRequester),
+                                textStyle = MaterialTheme.typography.bodyLarge.copy(color = contentColor),
+                                cursorBrush = SolidColor(contentColor),
+                                singleLine = true,
+                                decorationBox = { innerTextField ->
+                                    if (searchQuery.isEmpty()) {
+                                        Text("Search in list...", color = secondaryContentColor)
+                                    }
+                                    innerTextField()
+                                }
+                            )
+                            if (uiState.taskList?.type == ListType.TEXT && textMatches.isNotEmpty()) {
+                                IconButton(
+                                    onClick = {
+                                        if (textMatchIndex > 0) textMatchIndex--
+                                        else textMatchIndex = textMatches.size - 1
+                                    },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Previous match", tint = contentColor)
+                                }
+                                IconButton(
+                                    onClick = {
+                                        if (textMatchIndex < textMatches.size - 1) textMatchIndex++
+                                        else textMatchIndex = 0
+                                    },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Next match", tint = contentColor)
+                                }
+                            }
+                        }
+                        LaunchedEffect(Unit) {
+                            searchFocusRequester.requestFocus()
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(
                         onClick = onBack,
@@ -176,78 +253,103 @@ fun ListDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = { viewModel.undo() },
-                        enabled = uiState.canUndo && uiState.taskList?.isLocked == false,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Undo,
-                            contentDescription = "Undo",
-                            tint = if (uiState.canUndo && uiState.taskList?.isLocked == false) contentColor else contentColor.copy(alpha = 0.38f),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    IconButton(
-                        onClick = { viewModel.redo() },
-                        enabled = uiState.canRedo && uiState.taskList?.isLocked == false,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Redo,
-                            contentDescription = "Redo",
-                            tint = if (uiState.canRedo && uiState.taskList?.isLocked == false) contentColor else contentColor.copy(alpha = 0.38f),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    IconButton(
-                        onClick = { 
-                            viewModel.toggleLock()
-                            showColorPicker = false
-                        },
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (uiState.taskList?.isLocked == true) Icons.Default.Lock else Icons.Default.LockOpen,
-                            contentDescription = if (uiState.taskList?.isLocked == true) "Unlock" else "Lock",
-                            tint = contentColor,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    IconButton(
-                        onClick = { showTrashConfirm = true },
-                        enabled = uiState.taskList?.isLocked == false,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Move to Trash",
-                            tint = if (uiState.taskList?.isLocked == false) contentColor else contentColor.copy(alpha = 0.38f),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    IconButton(
-                        onClick = { showColorPicker = !showColorPicker },
-                        enabled = uiState.taskList?.isLocked == false,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Palette,
-                            contentDescription = "Pick color",
-                            tint = if (uiState.taskList?.isLocked == false) contentColor else contentColor.copy(alpha = 0.38f),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    IconButton(
-                        onClick = onOpenNotificationSettings,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Notification settings",
-                            tint = contentColor,
-                            modifier = Modifier.size(20.dp)
-                        )
+                    if (isSearchActive) {
+                        IconButton(onClick = { 
+                            isSearchActive = false
+                            searchQuery = ""
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close search",
+                                tint = contentColor,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    } else {
+                        IconButton(
+                            onClick = { viewModel.undo() },
+                            enabled = uiState.canUndo && uiState.taskList?.isLocked == false,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Undo,
+                                contentDescription = "Undo",
+                                tint = if (uiState.canUndo && uiState.taskList?.isLocked == false) contentColor else contentColor.copy(alpha = 0.38f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = { viewModel.redo() },
+                            enabled = uiState.canRedo && uiState.taskList?.isLocked == false,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Redo,
+                                contentDescription = "Redo",
+                                tint = if (uiState.canRedo && uiState.taskList?.isLocked == false) contentColor else contentColor.copy(alpha = 0.38f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = { isSearchActive = true },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search",
+                                tint = contentColor,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = { 
+                                viewModel.toggleLock()
+                                showColorPicker = false
+                            },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (uiState.taskList?.isLocked == true) Icons.Default.Lock else Icons.Default.LockOpen,
+                                contentDescription = if (uiState.taskList?.isLocked == true) "Unlock" else "Lock",
+                                tint = contentColor,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = { showTrashConfirm = true },
+                            enabled = uiState.taskList?.isLocked == false,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Move to Trash",
+                                tint = if (uiState.taskList?.isLocked == false) contentColor else contentColor.copy(alpha = 0.38f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = { showColorPicker = !showColorPicker },
+                            enabled = uiState.taskList?.isLocked == false,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Palette,
+                                contentDescription = "Pick color",
+                                tint = if (uiState.taskList?.isLocked == false) contentColor else contentColor.copy(alpha = 0.38f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = onOpenNotificationSettings,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = "Notification settings",
+                                tint = contentColor,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -336,23 +438,64 @@ fun ListDetailScreen(
             }
 
             if (list?.type == ListType.TEXT) {
-                var noteText by remember(list.textContent) { mutableStateOf(list.textContent ?: "") }
-                BasicTextField(
-                    value = noteText,
-                    onValueChange = { if (!isLocked) noteText = it },
-                    readOnly = isLocked,
+                val scrollState = rememberScrollState()
+                var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+                
+                LaunchedEffect(textMatchIndex, textLayoutResult) {
+                    if (textMatchIndex in textMatches.indices && textLayoutResult != null) {
+                        val start = textMatches[textMatchIndex]
+                        val boundingBox = textLayoutResult!!.getBoundingBox(start)
+                        val scrollToY = (boundingBox.top - 100f).coerceAtLeast(0f).toInt()
+                        scrollState.animateScrollTo(scrollToY)
+                    }
+                }
+                
+                val searchVisualTransformation = remember(searchQuery, textMatches, textMatchIndex, contentColor) {
+                    VisualTransformation { text ->
+                        if (searchQuery.isEmpty() || textMatches.isEmpty()) {
+                            TransformedText(text, OffsetMapping.Identity)
+                        } else {
+                            val annotated = buildAnnotatedString {
+                                append(text.text)
+                                textMatches.forEachIndexed { index, start ->
+                                    val end = start + searchQuery.length
+                                    val isActive = index == textMatchIndex
+                                    val highlightColor = if (isActive) Color(0xFFFF9800).copy(alpha = 0.5f) else contentColor.copy(alpha = 0.2f)
+                                    addStyle(
+                                        style = SpanStyle(background = highlightColor),
+                                        start = start,
+                                        end = end
+                                    )
+                                }
+                            }
+                            TransformedText(annotated, OffsetMapping.Identity)
+                        }
+                    }
+                }
+
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(16.dp),
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = contentColor),
-                    cursorBrush = SolidColor(contentColor),
-                    decorationBox = { innerTextField ->
-                        if (noteText.isEmpty()) {
-                            Text("Start typing your note...", color = secondaryContentColor)
+                        .padding(16.dp)
+                        .verticalScroll(scrollState)
+                ) {
+                    BasicTextField(
+                        value = noteText,
+                        onValueChange = { if (!isLocked) noteText = it },
+                        readOnly = isLocked,
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(color = contentColor),
+                        cursorBrush = SolidColor(contentColor),
+                        visualTransformation = searchVisualTransformation,
+                        onTextLayout = { textLayoutResult = it },
+                        decorationBox = { innerTextField ->
+                            if (noteText.isEmpty()) {
+                                Text("Start typing your note...", color = secondaryContentColor)
+                            }
+                            innerTextField()
                         }
-                        innerTextField()
-                    }
-                )
+                    )
+                }
                 DisposableEffect(list.id) {
                     onDispose { if (!isLocked) viewModel.updateTextContent(noteText) }
                 }
@@ -383,8 +526,9 @@ fun ListDetailScreen(
                 }
 
                 LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                    val activeItems = localItems.filter { !it.isChecked }
-                    val completedItems = localItems.filter { it.isChecked }
+                    val activeItems = localItems.filter { !it.isChecked && (searchQuery.isEmpty() || it.text.contains(searchQuery, ignoreCase = true)) }
+                    val completedItems = localItems.filter { it.isChecked && (searchQuery.isEmpty() || it.text.contains(searchQuery, ignoreCase = true)) }
+                    val isDragEnabled = !isLocked && searchQuery.isEmpty()
 
                     itemsIndexed(activeItems, key = { _, item -> item.id }) { index, item ->
                         val isDraggedItem = draggedIndex == index
@@ -396,6 +540,7 @@ fun ListDetailScreen(
                             item = item,
                             isDragged = isDraggedItem,
                             isLocked = isLocked,
+                            isDragEnabled = isDragEnabled,
                             elevation = elevation,
                             dragOffsetY = if (isDraggedItem) dragOffsetY else 0f,
                             contentColor = contentColor,
@@ -408,7 +553,7 @@ fun ListDetailScreen(
                             onDelete = { viewModel.deleteItem(item) },
                             onIndentChanged = { delta -> viewModel.changeItemIndent(item, delta) },
                             onDragStart = {
-                                if (!isLocked) {
+                                if (isDragEnabled) {
                                     isDragging = true
                                     draggedIndex = index
                                     dragOffsetY = 0f
@@ -457,6 +602,7 @@ fun ListDetailScreen(
                                 item = item,
                                 isDragged = isDraggedItem,
                                 isLocked = isLocked,
+                                isDragEnabled = isDragEnabled,
                                 elevation = elevation,
                                 dragOffsetY = if (isDraggedItem) dragOffsetY else 0f,
                                 contentColor = contentColor,
@@ -469,7 +615,7 @@ fun ListDetailScreen(
                                 onDelete = { viewModel.deleteItem(item) },
                                 onIndentChanged = { delta -> viewModel.changeItemIndent(item, delta) },
                                 onDragStart = {
-                                    if (!isLocked) {
+                                    if (isDragEnabled) {
                                         isDragging = true
                                         draggedIndex = actualIndex
                                         dragOffsetY = 0f
@@ -509,6 +655,7 @@ private fun DraggableTaskRow(
     item: TaskItem,
     isDragged: Boolean,
     isLocked: Boolean,
+    isDragEnabled: Boolean,
     elevation: Dp,
     dragOffsetY: Float,
     contentColor: Color,
@@ -551,7 +698,7 @@ private fun DraggableTaskRow(
                 .padding(horizontal = 8.dp, vertical = 4.dp)
                 .padding(start = (item.indentLevel * 24).dp)
                 .pointerInput(item.id) {
-                    if (!isLocked) {
+                    if (isDragEnabled) {
                         detectHorizontalDragGestures(
                             onDragStart = { horizontalDragOffset = 0f },
                             onHorizontalDrag = { change, dragAmount ->
@@ -572,7 +719,7 @@ private fun DraggableTaskRow(
                 },
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (!isLocked) {
+            if (isDragEnabled) {
                 Icon(
                     imageVector = Icons.Default.DragHandle,
                     contentDescription = "Drag to reorder",

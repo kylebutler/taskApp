@@ -45,6 +45,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -70,7 +71,7 @@ fun HomeScreen(
     val localLists = remember { mutableStateListOf<TaskList>() }
     var isDragging by remember { mutableStateOf(false) }
     var draggedIndex by remember { mutableStateOf<Int?>(null) }
-    var dragOffsetY by remember { mutableStateOf(0f) }
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
     val listState = rememberLazyListState()
 
     var showCreateDialog by remember { mutableStateOf(false) }
