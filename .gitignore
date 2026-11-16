@@ -10,6 +10,7 @@ local.properties
 **/build/
 *.apk
 *.bundle
+google.services.json
 
 # IDE files
 .gradle/

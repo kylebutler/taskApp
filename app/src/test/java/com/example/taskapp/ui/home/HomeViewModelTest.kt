@@ -91,4 +91,23 @@ class HomeViewModelTest {
 
         coVerify { repo.reorderLists(lists) }
     }
+
+    @Test
+    fun `archiveList should call repository moveToArchive`() = runTest {
+        val list = TaskList(id = 1, title = "List 1")
+        viewModel.archiveList(list)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { repo.moveToArchive(list) }
+    }
+
+    @Test
+    fun `deleteList should call moveToTrash`() = runTest {
+        val list = TaskList(id = 1, title = "List 1")
+        viewModel.deleteList(list)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { repo.moveToTrash(list) }
+        coVerify { alarmScheduler.cancel(1L) }
+    }
 }

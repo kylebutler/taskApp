@@ -90,7 +90,10 @@ object NotificationHelper {
         )
 
         builder.setContentIntent(tapPendingIntent)
-        NotificationManagerCompat.from(context).notify(notificationId, builder.build())
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || 
+            androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            NotificationManagerCompat.from(context).notify(notificationId, builder.build())
+        }
     }
 
     fun buildClockAlarmNotification(context: Context, alarmId: Long, label: String): NotificationCompat.Builder {
@@ -150,7 +153,10 @@ object NotificationHelper {
         val notification = builder.build()
         notification.flags = notification.flags or NotificationCompat.FLAG_INSISTENT
 
-        NotificationManagerCompat.from(context).notify(alarmId.toInt(), notification)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || 
+            androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            NotificationManagerCompat.from(context).notify(alarmId.toInt(), notification)
+        }
     }
 
     fun showSnoozeNotification(context: Context, alarmId: Long, label: String, nextTriggerTime: String) {
@@ -160,7 +166,10 @@ object NotificationHelper {
             .setContentText("$label will trigger at $nextTriggerTime")
             .setAutoCancel(true)
         
-        NotificationManagerCompat.from(context).notify((alarmId + 4000).toInt(), builder.build())
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || 
+            androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            NotificationManagerCompat.from(context).notify((alarmId + 4000).toInt(), builder.build())
+        }
     }
 
     fun updateIfActive(context: Context, list: TaskList, items: List<TaskItem>) {

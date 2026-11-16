@@ -86,4 +86,38 @@ class TaskRepositoryTest {
             })
         }
     }
+
+    @Test
+    fun `restoreFromArchive should set isArchived to false`() = runTest {
+        val list = TaskList(id = 1, title = "Test", isArchived = true)
+        repository.restoreFromArchive(list)
+
+        coVerify {
+            taskListDao.updateList(match {
+                it.id == 1L && !it.isArchived
+            })
+        }
+    }
+
+    @Test
+    fun `restoreList should set isDeleted to false and clear deletedAt`() = runTest {
+        val list = TaskList(id = 1, title = "Test", isDeleted = true, deletedAt = 12345L)
+        repository.restoreList(list)
+
+        coVerify {
+            taskListDao.updateList(match {
+                it.id == 1L && !it.isDeleted && it.deletedAt == null
+            })
+        }
+    }
+
+    @Test
+    fun `permanentlyDeleteList should call deleteList`() = runTest {
+        val list = TaskList(id = 1, title = "Test")
+        repository.permanentlyDeleteList(list)
+
+        coVerify {
+            taskListDao.deleteList(match { it.id == 1L })
+        }
+    }
 }
