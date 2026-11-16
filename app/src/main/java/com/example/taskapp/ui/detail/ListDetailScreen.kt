@@ -267,17 +267,6 @@ fun ListDetailScreen(
                         }
                     } else {
                         IconButton(
-                            onClick = { isSearchActive = true },
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = "Search",
-                                tint = contentColor,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        IconButton(
                             onClick = { viewModel.undo() },
                             enabled = uiState.canUndo && uiState.taskList?.isLocked == false,
                             modifier = Modifier.size(40.dp)
@@ -298,6 +287,17 @@ fun ListDetailScreen(
                                 imageVector = Icons.AutoMirrored.Filled.Redo,
                                 contentDescription = "Redo",
                                 tint = if (uiState.canRedo && uiState.taskList?.isLocked == false) contentColor else contentColor.copy(alpha = 0.38f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        IconButton(
+                            onClick = { isSearchActive = true },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search",
+                                tint = contentColor,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
